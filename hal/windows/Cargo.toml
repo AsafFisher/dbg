@@ -1,0 +1,15 @@
+cargo-features = ["edition2021"]
+[package]
+name = "windowsgdb"
+version = "0.1.0"
+edition = "2021"
+
+
+[[bin]]
+name = "dbgg"
+path = "main.rs"
+
+# [build-dependencies]
+# core = {version = "0.1.0", path = "../../core"}
+[dependencies]
+core = {version = "0.1.0", path = "../../core"}

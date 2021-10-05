@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = [
+    #"common_structures",
+    "core",
+    "hal/linux",
+    # "hal/windows"
+]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+# byteorder = "1.4.3"

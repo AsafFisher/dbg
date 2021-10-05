@@ -1,0 +1,28 @@
+cargo-features = ["edition2021"]
+[package]
+name = "core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+byteorder = "1.4.3"
+anyhow = "1.0"
+thiserror = "1.0.30"
+num = "0.4"
+num-traits = "0.2"
+num-derive = "0.3"
+serde = {version="1.0.130", features = ["derive"]}
+bincode = "1.3.3"
+
+serde-reflection = "0.3.4"
+serde-generate = "0.20.1"
+serde_yaml = "0.8.21"
+libc = "0.2.103"
+
+[lib]
+path = "lib.rs"
+name = "core"
+
+[[bin]]
+path = "generate_struct_defs.rs"
+name = "generate_structs"
