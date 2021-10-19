@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import structs
 import socket
 import struct
+from contextlib import contextmanager
 
 @dataclass(frozen=True)
 class Address:
@@ -23,10 +24,10 @@ class Address:
         return self
     
     def __sub__(self, val):
-        return __add__(self, -val)
+        return self.__add__(self, -val)
 
     def __isub__(self, val):
-        return __iadd__(self, -val)
+        return self.__iadd__(self, -val)
         
     def read(self, size):
         sock.send(structs.CMD__READ().bincode_serialize())
@@ -39,11 +40,14 @@ class Address:
         sock.send(struct.pack('Q', len(write_cmd_buff)))
         sock.send(write_cmd_buff)
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+def debugger_connect():
+    sock =socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect(("127.0.0.1", 8080))
+    return sock
 
-sock.connect(("127.0.0.1", 8080))
-import pdb;pdb.set_trace()
-addr = Address(0x1077da2b0, sock)
+sock = debugger_connect()
+import pdb; pdb.set_trace()
+
 print(addr(123))
 print(addr.read(10))
 #addr.write(b"hello")

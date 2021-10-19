@@ -1,0 +1,25 @@
+cargo-features = ["edition2021"]
+[package]
+name = "hal-shellcode-linuxgdb"
+version = "0.1.0"
+edition = "2021"
+
+
+[lib]
+name = "hal_shellcode_linuxgdb"
+
+[dependencies]
+coregdb = {path = "../../core", version = "0.1.0"}
+anyhow = {version="1.0", default-features = false}
+libc = {version = "0.2.106", default-features = false}
+syscalls = { version = "0.5.0", default-features = false }
+sc = "0.2.5"
+
+[dependencies.common]
+version = "0.1.0"
+default-features = false
+path = "../../common"
+
+[dependencies.core2]
+default-features = false
+version = "0.3.2"

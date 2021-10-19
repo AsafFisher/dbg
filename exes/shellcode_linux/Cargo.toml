@@ -1,0 +1,18 @@
+[package]
+name = "shellcode"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hal-shellcode-linuxgdb = {version = "0.1.0", path = "../../hal/shellcode_linuxgdb"}
+compiler_builtins = { git = "https://github.com/rust-lang/compiler-builtins", features=["mem"]}
+#rlibc = "1.0"
+#memchr = {version = "2.4.1", default-features = false}
+
+
+# release
+#`rustc --crate-name shellcode --edition=2018 exes/shellcode_linux/src/main.rs --error-format=json --json=diagnostic-rendered-ansi --crate-type bin --emit=dep-info,link -C panic=abort -C embed-bitcode=no -C debuginfo=2 -C metadata=1dff25241d233204 -C extra-filename=-1dff25241d233204 --out-dir /mnt/c/Users/asaff/Documents/Dev/Github/tool/target/debug/deps -C incremental=/mnt/c/Users/asaff/Documents/Dev/Github/tool/target/debug/incremental -L dependency=/mnt/c/Users/asaff/Documents/Dev/Github/tool/target/debug/deps --extern hal_shellcode_linuxgdb=/mnt/c/Users/asaff/Documents/Dev/Github/tool/target/debug/deps/libhal_shellcode_linuxgdb-74eb1d71ff9a5a9d.rlib --extern rlibc=/mnt/c/Users/asaff/Documents/Dev/Github/tool/target/debug/deps/librlibc-2f9965ebec786cb1.rlib -C link-arg=-nostdlib -C link-arg=-static -C link-arg=-T./shellcode.ld`
+#debug
+# rustc --crate-name shellcode --edition=2018 exes/shellcode_linux/src/main.rs --error-format=json --json=diagnostic-rendered-ansi --crate-type bin --emit=dep-info,link -C opt-level=z -C panic=abort -C lto -C codegen-units=1 -C metadata=f952f022bb01ef11 -C extra-filename=-f952f022bb01ef11 --out-dir /mnt/c/Users/asaff/Documents/Dev/Github/tool/target/release/deps -L dependency=/mnt/c/Users/asaff/Documents/Dev/Github/tool/target/release/deps --extern hal_shellcode_linuxgdb=/mnt/c/Users/asaff/Documents/Dev/Github/tool/target/release/deps/libhal_shellcode_linuxgdb-ab8eca64f355765c.rlib --extern rlibc=/mnt/c/Users/asaff/Documents/Dev/Github/tool/target/release/deps/librlibc-8b066bd830d0ed19.rlib -C link-arg=-nostdlib -C link-arg=-static -C link-arg=-T./shellcode.ld

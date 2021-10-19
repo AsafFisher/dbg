@@ -1,0 +1,12 @@
+cargo-features = ["edition2021"]
+[package]
+name = "common"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies.core2]
+default-features = false
+version = "0.3.2"
+
+[lib]
+name = "common"

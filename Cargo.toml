@@ -1,12 +1,20 @@
 [workspace]
 resolver = "2"
 members = [
-    #"common_structures",
     "core",
-    "hal/linux",
+    "common",
+    "hal/stdgdb",
+    "hal/shellcode_linuxgdb",
+    "exes/standard",
+    "exes/shellcode_linux"
     # "hal/windows"
 ]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[profile.dev]
+panic = "abort"
 
-
-# byteorder = "1.4.3"
+[profile.release]
+panic = "abort"
+opt-level = "z"
+lto = true
+codegen-units = 1

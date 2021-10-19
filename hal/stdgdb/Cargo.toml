@@ -1,0 +1,17 @@
+cargo-features = ["edition2021"]
+[package]
+name = "hal-stdgdb"
+version = "0.1.0"
+edition = "2021"
+
+
+[lib]
+name = "hal_stdgdb"
+
+[dependencies]
+common = {version = "0.1.0", path = "../../common"}
+anyhow = "1.0"
+bincode = "1.3.3"
+byteorder = "1.4.3"
+[dependencies.core2]
+version = "0.3.2"
