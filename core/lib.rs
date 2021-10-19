@@ -102,60 +102,64 @@ fn handle_read(connection: &mut dyn ReadWrite) -> Result<()> {
     Ok(())
 }
 
+macro_rules! my_match {
+    ($obj:expr, $($matcher:pat => $result:expr),*) => {
+        match $obj {
+            $(
+                $matcher => {
+                    connection.write_uint::<LittleEndian>(
+                    std::mem::transmute::<_, extern "C" fn($result) -> u64>(ptr)(), 8,
+                )?
+            }
+        ),*
+        }
+    }
+ }
+
+
+
 fn make_call(
     connection: &mut dyn ReadWrite,
     ptr: *const c_void,
     mut argunments: Vec<usize>,
 ) -> Result<()> {
-    if argunments.len() >= 20 {
+    // ABI call macro
+    macro_rules! abi_call {
+        ($($args:ty),*) => {
+            connection.write_uint::<LittleEndian>(
+                std::mem::transmute::<_, extern "C" fn($($args),*) -> u64>(ptr)(
+                    $(abi_call!(@ar $args)),*
+                ),
+                8,
+            )?;
+        };
+        (@ar $x:ty) => {
+            argunments.remove(0)
+        }
+    }
+
+    // CODE:
+    if argunments.len() >= 11 {
         println!("Too many parameters");
         return Err(anyhow::anyhow!("Too many parameters"));
     }
     unsafe {
-        match argunments.len() {
-            0 => {
-                connection.write_uint::<LittleEndian>(
-                    std::mem::transmute::<_, extern "C" fn() -> u64>(ptr)(),
-                    8,
-                )?;
-            }
-            1 => {
-                connection.write_uint::<LittleEndian>(
-                    std::mem::transmute::<_, extern "C" fn(usize) -> u64>(ptr)(
-                        argunments.remove(0),
-                    ),
-                    8,
-                )?;
-            }
-            2 => {
-                connection.write_uint::<LittleEndian>(
-                    std::mem::transmute::<_, extern "C" fn(usize, usize) -> u64>(ptr)(
-                        argunments.remove(0),
-                        argunments.remove(0),
-                    ),
-                    8,
-                )?;
-            }
-            3 => {
-                connection.write_uint::<LittleEndian>(
-                    std::mem::transmute::<_, extern "C" fn(usize, usize, usize) -> u64>(ptr)(
-                        argunments.remove(0),
-                        argunments.remove(0),
-                        argunments.remove(0),
-                    ),
-                    8,
-                )?;
-            }
-            _ => panic!("wong"),
+        match argunments.len(){
+            0 => abi_call!(),
+            1 => abi_call!(usize),
+            2 => abi_call!(usize, usize),
+            3 => abi_call!(usize, usize, usize),
+            4 => abi_call!(usize, usize, usize, usize),
+            5 => abi_call!(usize, usize, usize, usize, usize),
+            6 => abi_call!(usize, usize, usize, usize, usize, usize),
+            7 => abi_call!(usize, usize, usize, usize, usize, usize, usize),
+            8 => abi_call!(usize, usize, usize, usize, usize, usize, usize, usize),
+            9 => abi_call!(usize, usize, usize, usize, usize, usize ,usize, usize, usize),
+            10 => abi_call!(usize, usize, usize, usize, usize, usize ,usize, usize, usize, usize),
+            _ => panic!("Wrong")
         }
     }
     Ok(())
-    // make_calls!();
-    // for x in 0..20{
-
-    //     let arguments_str = "usize";
-    //     format!("x => \\{let fn: fn({arguments}) = ptr\\}", arguments_str)
-    // }
 }
 
 fn handle_call(connection: &mut dyn ReadWrite) -> Result<()> {
