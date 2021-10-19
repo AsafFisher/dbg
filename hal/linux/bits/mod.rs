@@ -1,6 +1,6 @@
 use core::ReadWrite;
-use std::net::{TcpListener, TcpStream};
-use anyhow::{Error, Result};
+use std::net::{TcpListener};
+use anyhow::{Result};
 // use std::io::Write;
 // use std::io::Read;
 // struct TcpConnection{
@@ -26,8 +26,8 @@ pub extern "Rust" fn init_connection() -> Result<Box<dyn ReadWrite>>{
 }
 
 #[no_mangle]
-pub extern "Rust" fn handle_error(err: anyhow::Error, connection: &mut dyn ReadWrite) -> Result<()>{
-    for cause in err.chain(){
+pub extern "Rust" fn handle_error(err: anyhow::Error, _connection: &mut dyn ReadWrite) -> Result<()>{
+    for _cause in err.chain(){
         // if let Some(err) = cause.downcast_ref::<Error>() {
         //     println!("{:?}", bincode::serialize(err).unwrap().as_slice());
         //     connection.write_all(bincode::serialize(err).unwrap().as_slice());

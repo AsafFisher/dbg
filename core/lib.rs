@@ -1,5 +1,5 @@
 use anyhow::Result;
-use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use libc::c_void;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
@@ -9,7 +9,6 @@ use std::{
     panic,
 };
 use thiserror::Error;
-const hello: &str = "hello_world";
 
 // extern crate proc_macro;
 // use proc_macro::TokenStream;
@@ -31,11 +30,11 @@ pub enum CMD {
 pub trait ReadWrite: Read + Write {}
 impl<T: Read + Write + ?Sized> ReadWrite for T {}
 
-#[derive(Error, Debug, Serialize)]
-enum Error {
-    #[error("Tried to access an invalid address")]
-    BadAddress { address: usize },
-}
+// #[derive(Error, Debug, Serialize)]
+// enum Error {
+//     #[error("Tried to access an invalid address")]
+//     BadAddress { address: usize },
+// }
 
 #[derive(Deserialize, Debug)]
 pub struct ReadCmd {
@@ -59,11 +58,7 @@ extern "Rust" {
     fn init_connection() -> Result<Box<dyn ReadWrite>>;
     fn handle_error(err: anyhow::Error, connection: &mut dyn ReadWrite) -> Result<()>;
 }
-extern "C" fn pr(a: usize, b: usize, c: usize) -> u64 // Address is printed
-{
-    println!("hello {:?} {:?} {:?}", a, b, c);
-    return 4;
-}
+
 fn read_msg_buffer(connection: &mut dyn ReadWrite) -> Vec<u8> {
     let mut buff = [0; std::mem::size_of::<usize>()];
     connection.read_exact(&mut buff).unwrap();
@@ -185,7 +180,6 @@ pub fn handle_client(mut connection: Box<dyn ReadWrite + 'static>) -> Result<()>
 }
 
 pub unsafe fn run() {
-    println!("{:p}", pr as extern "C" fn(usize, usize, usize) -> _);
     let connection = init_connection().unwrap();
     match handle_client(connection) {
         Ok(()) => return,
