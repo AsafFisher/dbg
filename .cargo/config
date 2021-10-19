@@ -1,0 +1,3 @@
+[build]
+#"-C", "link-arg=-static",
+rustflags = [ "-C", "relocation-model=pic"]
