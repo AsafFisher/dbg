@@ -1,14 +1,14 @@
-use anyhow::Result;
+use anyhow::{private::kind::TraitKind, Context, Result};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use libc::c_void;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
+use std::io::ErrorKind::UnexpectedEof;
 use std::{
     io::{Read, Write},
     panic,
 };
-use thiserror::Error;
 
 // extern crate proc_macro;
 // use proc_macro::TokenStream;
@@ -102,22 +102,6 @@ fn handle_read(connection: &mut dyn ReadWrite) -> Result<()> {
     Ok(())
 }
 
-macro_rules! my_match {
-    ($obj:expr, $($matcher:pat => $result:expr),*) => {
-        match $obj {
-            $(
-                $matcher => {
-                    connection.write_uint::<LittleEndian>(
-                    std::mem::transmute::<_, extern "C" fn($result) -> u64>(ptr)(), 8,
-                )?
-            }
-        ),*
-        }
-    }
- }
-
-
-
 fn make_call(
     connection: &mut dyn ReadWrite,
     ptr: *const c_void,
@@ -144,7 +128,7 @@ fn make_call(
         return Err(anyhow::anyhow!("Too many parameters"));
     }
     unsafe {
-        match argunments.len(){
+        match argunments.len() {
             0 => abi_call!(),
             1 => abi_call!(usize),
             2 => abi_call!(usize, usize),
@@ -154,9 +138,9 @@ fn make_call(
             6 => abi_call!(usize, usize, usize, usize, usize, usize),
             7 => abi_call!(usize, usize, usize, usize, usize, usize, usize),
             8 => abi_call!(usize, usize, usize, usize, usize, usize, usize, usize),
-            9 => abi_call!(usize, usize, usize, usize, usize, usize ,usize, usize, usize),
-            10 => abi_call!(usize, usize, usize, usize, usize, usize ,usize, usize, usize, usize),
-            _ => panic!("Wrong")
+            9 => abi_call!(usize, usize, usize, usize, usize, usize, usize, usize, usize),
+            10 => abi_call!(usize, usize, usize, usize, usize, usize, usize, usize, usize, usize),
+            _ => panic!("Wrong"),
         }
     }
     Ok(())
@@ -168,12 +152,16 @@ fn handle_call(connection: &mut dyn ReadWrite) -> Result<()> {
     return make_call(connection, cmd.address as *const c_void, cmd.parameters);
 }
 
-pub fn handle_client(mut connection: Box<dyn ReadWrite + 'static>) -> Result<()> {
+pub fn handle_client(connection: &mut dyn ReadWrite) -> Result<()> {
     loop {
-        let res = match FromPrimitive::from_u32(connection.read_u32::<LittleEndian>().unwrap()) {
-            Some(CMD::READ) => handle_read(&mut *connection),
-            Some(CMD::WRITE) => handle_write(&mut *connection),
-            Some(CMD::CALL) => handle_call(&mut *connection),
+        // match connection.read_u32::<LittleEndian>(){
+        //     Ok(()) => todo!(),
+        //     Err(err) => err.kind()
+        // }
+        let res = match FromPrimitive::from_u32(connection.read_u32::<LittleEndian>()?) {
+            Some(CMD::READ) => handle_read(connection),
+            Some(CMD::WRITE) => handle_write(connection),
+            Some(CMD::CALL) => handle_call(connection),
             None => todo!(),
         };
         match res {
@@ -184,9 +172,17 @@ pub fn handle_client(mut connection: Box<dyn ReadWrite + 'static>) -> Result<()>
 }
 
 pub unsafe fn run() {
-    let connection = init_connection().unwrap();
-    match handle_client(connection) {
-        Ok(()) => return,
-        Err(err) => panic!("{:?}", err),
-    };
+    loop {
+        let mut connection = init_connection().unwrap();
+        match handle_client(&mut *connection) {
+            Ok(()) => return,
+            Err(err) => {
+                match handle_error(err, &mut *connection){
+                    Ok(()) => continue,
+                    Err(err) => panic!("{:?}", err)
+                }
+                continue;
+            }
+        };
+    }
 }
