@@ -9,6 +9,25 @@ use libcore::Hal;
 use syscalls;
 #[macro_use]
 extern crate sc;
+
+const STDOUT: usize = 1;
+static PANIC_MESSAGE: &str = "paniced!\n";
+#[panic_handler]
+fn panic(panic_info: &core::panic::PanicInfo) -> ! {
+
+    loop {
+        unsafe {
+            syscall!(
+                WRITE,
+                STDOUT,
+                PANIC_MESSAGE.as_ptr() as usize,
+                PANIC_MESSAGE.len()
+            );
+            asm!("int 3");
+        }
+    }
+}
+
 struct St {
     sock: usize,
 }
@@ -86,7 +105,7 @@ impl Hal<St> for St {
             //libc sockaddr localhost
             let addr = libc::sockaddr_in {
                 sin_family: libc::AF_INET as u16,
-                sin_port: 12344_u16.to_be(),
+                sin_port: 12343_u16.to_be(),
                 sin_addr: libc::in_addr { s_addr: 0 },
                 sin_zero: [0; 8],
             };

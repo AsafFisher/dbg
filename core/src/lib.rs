@@ -27,9 +27,9 @@ static A: Bump<[u8; 1 << 16]> = Bump::uninit();
 
 #[derive(FromPrimitive, Deserialize)]
 pub enum CMD {
-    READ,
-    WRITE,
-    CALL,
+    READ = 0,
+    WRITE = 1,
+    CALL = 2,
 }
 
 #[derive(Deserialize, Debug)]

@@ -36,9 +36,10 @@ int getpagesize() {
   return sysconf(_SC_PAGESIZE);
 }
 
-
+char *hello = "fuck you";
 main()
 {
+    printf("%p\n", hello);
   data_t data = get_shellcode();
   long int r =  mprotect_executable(data.buff, data.size); //mprotect((void *)((long int)code & ~4095),  4096, PROT_READ | PROT_WRITE|PROT_EXEC);
   
