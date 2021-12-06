@@ -88,6 +88,19 @@ unsafe fn syscall3(syscall: usize, arg1: usize, arg2: usize, arg3: usize) -> usi
 }
 
 impl Hal<St> for St {
+    fn print(&self, s: &str) {
+        let res = unsafe {
+            syscall!(
+                WRITE,
+                STDOUT,
+                s.as_ptr() as usize,
+                s.len()
+            )
+        };
+        if res < 0 {
+            panic!("write failed");
+        }
+    }
     fn init_connection(&self) -> Result<Box<St>> {
         // Create a libc socket
         let sock = unsafe {

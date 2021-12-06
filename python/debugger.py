@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import socket
 import struct
+import json
 from contextlib import contextmanager
 
 @dataclass(frozen=True)
@@ -29,16 +30,23 @@ class Address:
 
     def __isub__(self, val):
         return self.__iadd__(-val)
-        
+    def send_msg(self, buff):
+        sock.send(struct.pack("Q", len(buff)))
+        print(len(buff))
+        sock.send(buff)
+
     def read(self, size):
         import struct
-        import pdb;pdb.set_trace()
-        sock.send(b"\x00\x00\x00\x00")
+        sock.send(struct.pack("I", 0))
         sock.send(struct.pack("Q", size))
         sock.send(struct.pack("q", self.ptr))
         return sock.recv(size)
-    
+
     def write(self, buffer):
+        sock.send(struct.pack("I", 1))
+        self.send_msg(struct.pack("q", self.ptr))
+        self.send_msg(buffer)
+        # sock.send(buffer)
         # write_cmd_buff = structs.WriteCmd(self.ptr, buffer).bincode_serialize()
         # sock.send(structs.CMD__WRITE().bincode_serialize())
         # sock.send(struct.pack('Q', len(write_cmd_buff)))
@@ -51,9 +59,9 @@ def debugger_connect():
     return sock
 
 sock = debugger_connect()
+addr = Address(sock, eval(input()))
+addr.write(b'bddd')
 import pdb; pdb.set_trace()
-addr = Address(sock, 1)
-addr.read(10)
 
 
 # print(addr(123))

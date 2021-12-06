@@ -1,29 +1,24 @@
 #![feature(slice_pattern)]
 #![no_std]
-
+#![feature(asm)]
 extern crate alloc;
 extern crate base64;
 
-use alloc::vec::Vec;
 use alloc::boxed::Box;
-use anyhow::{Result};
+use alloc::format;
+use alloc::{string::ToString, vec::Vec};
+use anyhow::Result;
 pub use base64::{decode, encode};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use common::ReadWrite;
+use core::{ffi::c_void, slice::SlicePattern};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::Deserialize;
 use static_alloc::Bump;
-use core::ffi::c_void;
 
 #[global_allocator]
 static A: Bump<[u8; 1 << 16]> = Bump::uninit();
-
-//#[cfg(feature = "std")]
-//use hal_stdgdb::{init_connection, handle_error};
-
-// #[cfg(not(feature = "std"))]
-// use hal_shellcode_linuxgdb::{handle_error, init_connection};
 
 #[derive(FromPrimitive, Deserialize)]
 pub enum CMD {
@@ -33,55 +28,41 @@ pub enum CMD {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct ReadCmd {
-    size: usize,
-    address: usize,
-}
-
-#[derive(Deserialize, Debug)]
 pub struct CallCmd {
     address: usize,
     parameters: [usize; 10],
 }
 
-#[derive(Deserialize, Debug)]
-pub struct WriteCmd<'a> {
-    address: usize,
-    buffer: &'a str,
-}
-
-// extern "Rust" {
-//     fn init_connection::<T: ReadWrite>() -> Result<T>;
-//     fn handle_error(err: anyhow::Error, connection: &mut dyn ReadWrite) -> Result<()>;
-// }
-
-fn read_msg_buffer(connection: &mut dyn ReadWrite) -> Vec<u8> {
-    let mut buff = [0; core::mem::size_of::<usize>()];
-    connection.read_exact(&mut buff).unwrap();
-    let msg_size = usize::from_ne_bytes(buff);
-
-    // Make sure u64 == usize
+fn read_msg_buffer<RW: ReadWrite, H: Hal<RW>>(connection: &mut RW, hal: &H) -> Vec<u8> {
+    let msg_size = connection.read_u64::<LittleEndian>().unwrap();
     let mut buff = Vec::with_capacity(msg_size as usize);
-    buff.resize(msg_size, 0);
-
+    buff.resize(msg_size as usize, 0);
     // Unwrap - get rid
     connection.read_exact(buff.as_mut_slice()).unwrap();
 
     buff
 }
-fn handle_write(connection: &mut dyn ReadWrite) -> Result<()> {
-    let buff = read_msg_buffer(connection);
+fn handle_write<RW: ReadWrite, H: Hal<RW>>(connection: &mut RW, hal: &H) -> Result<()> {
+    let address = read_msg_buffer(connection, hal)
+        .as_slice()
+        .read_u64::<LittleEndian>()
+        .unwrap();
+    let buff = read_msg_buffer(connection, hal);
 
-    let (cmd, _) = serde_json_core::de::from_slice::<WriteCmd>(buff.as_slice()).unwrap();
     unsafe {
-        let slice = core::slice::from_raw_parts_mut(cmd.address as *mut u8, cmd.buffer.len());
-        slice.copy_from_slice(decode(&cmd.buffer).unwrap().as_slice())
+        let slice = core::slice::from_raw_parts_mut(address as *mut u8, buff.len());
+
+        // copy byte by byte from buff to slice
+        // TODO: Need to replace with memcpy when will be available without GOT.
+        for (i, byte) in buff.iter().enumerate() {
+            slice[i] = *byte;
+        }
     }
 
     Ok(())
 }
 
-fn handle_read(connection: &mut dyn ReadWrite) -> Result<()> {
+fn handle_read<RW: ReadWrite>(connection: &mut RW) -> Result<()> {
     let mut buff = [0; core::mem::size_of::<usize>()];
     connection.read_exact(&mut buff).unwrap();
 
@@ -146,8 +127,8 @@ fn make_call(
     }
 }
 
-fn handle_call(connection: &mut dyn ReadWrite) -> Result<()> {
-    let buff = read_msg_buffer(connection);
+fn handle_call<RW: ReadWrite, H: Hal<RW>>(connection: &mut RW, hal: &H) -> Result<()> {
+    let buff = read_msg_buffer(connection, hal);
     let (cmd, _) = serde_json_core::de::from_slice::<CallCmd>(buff.as_slice()).unwrap();
 
     return make_call(
@@ -157,34 +138,38 @@ fn handle_call(connection: &mut dyn ReadWrite) -> Result<()> {
     );
 }
 
-pub fn handle_client<RW: ReadWrite>(connection: &mut RW) -> Result<()> {
+pub fn handle_client<RW: ReadWrite, H: Hal<RW>>(connection: &mut RW, hal: &H) -> Result<()> {
     loop {
-        // match connection.read_u32::<LittleEndian>(){
-        //     Ok(()) => todo!(),
-        //     Err(err) => err.kind()
-        // }
+        let code = match connection.read_u32::<LittleEndian>() {
+            Ok(code) => code,
+            Err(err) => {
+                // TODO: handle error
+                continue;
+            }
+        };
 
         // TODO: remove unwrap
-        let res = match FromPrimitive::from_u32(connection.read_u32::<LittleEndian>().unwrap()) {
+        let res = match FromPrimitive::from_u32(code) {
             Some(CMD::READ) => handle_read(connection),
-            Some(CMD::WRITE) => handle_write(connection),
-            Some(CMD::CALL) => handle_call(connection),
+            Some(CMD::WRITE) => handle_write(connection, hal),
+            Some(CMD::CALL) => handle_call(connection, hal),
             None => todo!(),
         };
         match res {
             Ok(()) => continue,
-            Err(_) => todo!()//handle_error(err, &mut *connection)?,
+            Err(_) => todo!(), //handle_error(err, &mut *connection)?,
         }
     }
 }
-pub trait Hal<RW: ReadWrite>{
+pub trait Hal<RW: ReadWrite> {
+    fn print(&self, s: &str);
     fn init_connection(&self) -> Result<Box<RW>>;
-    fn handle_error(&self ,_err: anyhow::Error, _connection: &mut RW) -> Result<()>;
+    fn handle_error(&self, _err: anyhow::Error, _connection: &mut RW) -> Result<()>;
 }
 pub fn run<RW: ReadWrite, T: Hal<RW>>(hal: &T) {
     loop {
         let mut connection = hal.init_connection().unwrap();
-        match handle_client(&mut *connection) {
+        match handle_client(&mut *connection, hal) {
             Ok(()) => return,
             Err(err) => match hal.handle_error(err, &mut *connection) {
                 Ok(()) => continue,

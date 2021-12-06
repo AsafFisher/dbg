@@ -42,7 +42,7 @@ main()
     printf("%p\n", hello);
   data_t data = get_shellcode();
   long int r =  mprotect_executable(data.buff, data.size); //mprotect((void *)((long int)code & ~4095),  4096, PROT_READ | PROT_WRITE|PROT_EXEC);
-  
+  mprotect_executable(hello, strlen(hello));
   printf("mprotect: %d\n", r);
   int (*ret)() = (int(*)())data.buff;
   return ret();

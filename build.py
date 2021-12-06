@@ -23,7 +23,7 @@ host_target = '$(rustc -vV | sed -n "s/^host: //p")'
 musl_x86 = "x86_64-unknown-linux-musl"
 with chdir('./exes/shellcode_linux'):
     if True:
-        os.environ['RUSTFLAGS'] = '-C relocation-model=pic -C link-arg=-nostartfiles -C link-arg=-nostdlib -C link-arg=-static -C link-arg=-T./shellcode.ld' # Used to be pie -C target-feature=+crt-static -L/usr/lib/x86_64-linux-musl
+        os.environ['RUSTFLAGS'] = '-C relocation-model=pie -C link-arg=-nostartfiles -C link-arg=-nostdlib -C link-arg=-static -C link-arg=-T./shellcode.ld' # Used to be pie -C target-feature=+crt-static -L/usr/lib/x86_64-linux-musl
         os.system(f'cargo +nightly build --bin shellcode --release --verbose --target {host_target}')  # 
     else:
         #os.environ['RUSTFLAGS'] = '-C relocation-model=pie -C target-feature=+crt-static' # Used to be pie -C target-feature=+crt-static -L/usr/lib/x86_64-linux-musl
