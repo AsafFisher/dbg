@@ -84,10 +84,11 @@ fn handle_read<RW: ReadWrite>(connection: &mut RW) -> Result<()> {
     }
 }
 
-fn make_call(
+fn make_call<RW: ReadWrite, H: Hal<RW>>(
     connection: &mut dyn ReadWrite,
     ptr: *const c_void,
     mut argunments: Vec<usize>,
+    hal: &H
 ) -> Result<()> {
     // ABI call macro
     macro_rules! abi_call {
@@ -122,19 +123,27 @@ fn make_call(
         }
     };
     match connection.write_uint::<LittleEndian>(ret_val, 8) {
-        Ok(()) => todo!(),
+        Ok(()) => Ok(()),
         Err(_) => todo!(),
     }
 }
 
 fn handle_call<RW: ReadWrite, H: Hal<RW>>(connection: &mut RW, hal: &H) -> Result<()> {
-    let buff = read_msg_buffer(connection, hal);
-    let (cmd, _) = serde_json_core::de::from_slice::<CallCmd>(buff.as_slice()).unwrap();
-
+    let address = connection.read_u64::<LittleEndian>().unwrap();
+    let param_count = connection.read_u64::<LittleEndian>().unwrap();
+    let mut params = Vec::<usize>::with_capacity(param_count as usize);
+    params.resize(param_count as usize, 0);
+    for i in 0..param_count {
+        let mut buf = [0; core::mem::size_of::<usize>()];
+        connection.read_exact(&mut buf).unwrap();
+        // read usize from buff
+        params[i as usize] = usize::from_ne_bytes(buf);
+    }
     return make_call(
         connection,
-        cmd.address as *const c_void,
-        cmd.parameters.to_vec(),
+        address as *const c_void,
+        params,
+        hal
     );
 }
 
@@ -143,7 +152,7 @@ pub fn handle_client<RW: ReadWrite, H: Hal<RW>>(connection: &mut RW, hal: &H) ->
         let code = match connection.read_u32::<LittleEndian>() {
             Ok(code) => code,
             Err(err) => {
-                // TODO: handle error
+                todo!("Handler");
                 continue;
             }
         };

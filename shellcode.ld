@@ -18,6 +18,7 @@ SECTIONS
 		*(.got)
 		*(.bss)
 		*(.bss.*)
+		*(.got.*)
 	}
 
 

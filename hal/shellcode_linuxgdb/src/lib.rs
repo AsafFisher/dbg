@@ -1,6 +1,6 @@
 #![no_std]
-#![feature(asm)]
 extern crate alloc;
+use core::arch::asm;
 use alloc::boxed::Box;
 use anyhow::Result;
 use common::ReadWrite;

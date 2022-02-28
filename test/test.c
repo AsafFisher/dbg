@@ -37,9 +37,16 @@ int getpagesize() {
 }
 
 char *hello = "fuck you";
+int printlol(int a, int b){
+  printf("A: %d B: %d\n", a, b);
+  printf("%s\n", hello);
+  return 3;
+}
+
 main()
 {
-    printf("%p\n", hello);
+  printf("hello: %p\n", hello);
+  printf("func: %p\n", printlol);
   data_t data = get_shellcode();
   long int r =  mprotect_executable(data.buff, data.size); //mprotect((void *)((long int)code & ~4095),  4096, PROT_READ | PROT_WRITE|PROT_EXEC);
   mprotect_executable(hello, strlen(hello));
