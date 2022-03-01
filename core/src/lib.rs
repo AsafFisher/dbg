@@ -53,10 +53,7 @@ fn handle_write<RW: ReadWrite, H: Hal<RW>>(connection: &mut RW, hal: &H) -> Resu
         let slice = core::slice::from_raw_parts_mut(address as *mut u8, buff.len());
 
         // copy byte by byte from buff to slice
-        // TODO: Need to replace with memcpy when will be available without GOT.
-        for (i, byte) in buff.iter().enumerate() {
-            slice[i] = *byte;
-        }
+        slice.copy_from_slice(buff.as_slice());
     }
 
     Ok(())
@@ -132,6 +129,7 @@ fn handle_call<RW: ReadWrite, H: Hal<RW>>(connection: &mut RW, hal: &H) -> Resul
     let address = connection.read_u64::<LittleEndian>().unwrap();
     let param_count = connection.read_u64::<LittleEndian>().unwrap();
     let mut params = Vec::<usize>::with_capacity(param_count as usize);
+    
     params.resize(param_count as usize, 0);
     for i in 0..param_count {
         let mut buf = [0; core::mem::size_of::<usize>()];
