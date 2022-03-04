@@ -28,16 +28,17 @@ fn panic(panic_info: &core::panic::PanicInfo) -> ! {
     }
 }
 
-struct St {
+struct LinuxHal {
     sock: usize,
 }
-impl St {
-    fn new(sock_fd: usize) -> St {
-        St { sock: sock_fd}
+impl LinuxHal {
+    fn new(sock_fd: usize) -> LinuxHal {
+        LinuxHal { sock: sock_fd}
     }
 }
 
-impl core2::io::Read for St {
+
+impl core2::io::Read for LinuxHal {
     fn read(&mut self, _buf: &mut [u8]) -> core2::io::Result<usize> {
         // read from socket libc
         let res = unsafe {
@@ -52,7 +53,7 @@ impl core2::io::Read for St {
     }
 }
 
-impl core2::io::Write for St {
+impl core2::io::Write for LinuxHal {
     fn write(&mut self, _buf: &[u8]) -> core2::io::Result<usize> {
         // write to socket libc
         let res = unsafe {
@@ -87,7 +88,7 @@ unsafe fn syscall3(syscall: usize, arg1: usize, arg2: usize, arg3: usize) -> usi
     ret
 }
 
-impl Hal<St> for St {
+impl Hal<LinuxHal> for LinuxHal {
     fn print(&self, s: &str) {
         let res = unsafe {
             syscall!(
@@ -101,7 +102,7 @@ impl Hal<St> for St {
             panic!("write failed");
         }
     }
-    fn init_connection(&self) -> Result<Box<St>> {
+    fn init_connection(&self) -> Result<Box<LinuxHal>> {
         // Create a libc socket
         let sock = unsafe {
             // match syscalls::syscall3(syscalls::Sysno::socket, libc::AF_INET as usize, libc::SOCK_STREAM as usize, 0){
@@ -152,19 +153,19 @@ impl Hal<St> for St {
             }
             client_sock
         };
-        let listener = St::new(client_sock);
+        let listener = LinuxHal::new(client_sock);
         // Maybe allow multi connection
         //println!("Connected to {:?}", addr);
         Ok(Box::new(listener))
     }
 
-    fn handle_error(&self, _err: anyhow::Error, _connection: &mut St) -> Result<()> {
+    fn handle_error(&self, _err: anyhow::Error, _connection: &mut LinuxHal) -> Result<()> {
         Ok(())
     }
 }
 
 #[inline]
 pub fn hal_run() {
-    let hal = St::new(0);
-    libcore::run(&hal);
+    let hal = LinuxHal::new(0);
+    libcore::run(hal);
 }
