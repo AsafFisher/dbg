@@ -22,4 +22,5 @@ version = "0.1.0"
 
 [dependencies.core2]
 default-features = false
+features = ["nightly", "alloc"]
 version = "0.3.2"

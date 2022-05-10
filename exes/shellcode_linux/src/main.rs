@@ -7,7 +7,5 @@ use hal_shellcode_linuxgdb::hal_run;
 
 #[no_mangle]
 fn _start() {
-    unsafe {
         hal_run();
-    };
 }

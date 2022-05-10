@@ -1,27 +1,33 @@
 #![no_std]
+#![feature(panic_info_message)]
 extern crate alloc;
-use core::arch::asm;
-use alloc::boxed::Box;
+use core::{arch::asm, ptr::NonNull, panic::Location};
+use alloc::{boxed::Box, string::ToString};
 use anyhow::Result;
 use common::ReadWrite;
 use core::{marker::PhantomData, panic};
 use libcore::Hal;
 use syscalls;
+use rustix::{self, net::{AddressFamily, SocketType, Protocol}};
 #[macro_use]
 extern crate sc;
 
 const STDOUT: usize = 1;
-static PANIC_MESSAGE: &str = "paniced!\n";
+static PANIC_MESSAGE: &str = "unknown paniced!\n";
 #[panic_handler]
 fn panic(panic_info: &core::panic::PanicInfo) -> ! {
+    let string = match panic_info.message(){
+        Some(s) => s.as_str().unwrap(),
+        None => PANIC_MESSAGE,
+    };
 
     loop {
         unsafe {
             syscall!(
                 WRITE,
                 STDOUT,
-                PANIC_MESSAGE.as_ptr() as usize,
-                PANIC_MESSAGE.len()
+                string.as_ptr() as usize,
+                string.len()
             );
             asm!("int 3");
         }
@@ -45,8 +51,8 @@ impl core2::io::Read for LinuxHal {
             // read from socket
             syscall!(RECVFROM, self.sock, _buf.as_mut_ptr(), _buf.len(), 0, 0, 0)
         };
-        if res < 0 {
-            panic!("read failed");
+        if res <= 0 {
+            Err(core2::io::Error::new(core2::io::ErrorKind::Other, "read error"))
         } else {
             Ok(res as usize)
         }
