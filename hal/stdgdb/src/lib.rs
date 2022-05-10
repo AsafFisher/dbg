@@ -17,10 +17,10 @@ pub fn handle_error(err: anyhow::Error, _connection: &mut dyn ReadWrite) -> Resu
                 println!("Restarting remote debugger");
                 continue;
             } else {
-                return Err(anyhow::anyhow!("IO ERROR: {:?}", err))
+                return Err(anyhow::anyhow!("IO ERROR: {:?}", err));
             }
         } else {
-            return Err(anyhow::anyhow!("FATAL: {:?}", err))
+            return Err(anyhow::anyhow!("FATAL: {:?}", err));
         }
     }
     Ok(())

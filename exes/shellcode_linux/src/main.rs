@@ -7,5 +7,5 @@ use hal_shellcode_linuxgdb::hal_run;
 
 #[no_mangle]
 fn _start() {
-        hal_run();
+    hal_run();
 }

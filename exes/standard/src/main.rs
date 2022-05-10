@@ -9,10 +9,10 @@ extern "C" fn pr(a: usize, b: usize, c: u8) -> u64 // Address is printed
     return 4;
 }
 
-fn main(){
+fn main() {
     //println!("func: {:p}", pr as extern "C" fn(usize, usize, u8) -> _);
     //println!("Const: {:p}", hello);
-    unsafe{
-               run();
+    unsafe {
+        run();
     }
 }
