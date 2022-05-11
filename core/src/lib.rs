@@ -1,23 +1,18 @@
 #![feature(slice_pattern)]
 #![no_std]
-#![feature(asm)]
 extern crate alloc;
 extern crate base64;
 
 //mod io_impl;
 
-use alloc::borrow::ToOwned;
 use alloc::boxed::Box;
-use alloc::{format, vec};
+use alloc::string::String;
 use alloc::{string::ToString, vec::Vec};
-use anyhow::Result;
 pub use base64::{decode, encode};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use common::ReadWrite;
-use core::arch::asm;
-use core::{ffi::c_void, slice::SlicePattern};
-use core2::io::{Read, Write};
-use minicbor;
+use core::ffi::c_void;
+use core2::io::Write;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::Deserialize;
@@ -49,7 +44,10 @@ enum ResponseStatus {
         response: Response,
     },
     #[n(1)]
-    Error,
+    Error {
+        #[n(0)]
+        message: String,
+    },
 }
 
 #[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
@@ -89,27 +87,21 @@ pub enum CMD {
 }
 
 pub trait Hal<RW: ReadWrite> {
-    fn print(&self, s: &str);
-    fn init_connection(&self) -> Result<Box<RW>>;
-    fn handle_error(&self, _err: &anyhow::Error, _connection: &mut RW) -> Result<()>;
+    fn print(s: &str);
+    fn init_connection() -> Result<Box<RW>, ()>;
+    fn handle_error(_err: &anyhow::Error, _connection: &mut RW) -> Result<(), ()>;
 }
 
-struct Engine<RW: ReadWrite, T: Hal<RW>> {
-    hal: T,
-    phantom: core::marker::PhantomData<RW>,
+struct Engine<RW: ReadWrite, H: Hal<RW>> {
+    _ph: core::marker::PhantomData<RW>,
+    _ph2: core::marker::PhantomData<fn(H) -> ()>,
 }
 impl<RW: ReadWrite, T: Hal<RW>> Engine<RW, T> {
-    pub fn new(hal: T) -> Self {
-        Self {
-            hal,
-            phantom: core::marker::PhantomData,
-        }
-    }
-    pub fn run(&self) {
+    pub fn run() {
         loop {
-            self.hal.print("waiting for connection\n");
-            let mut connection = self.hal.init_connection().unwrap();
-            match self.handle_client(&mut *connection) {
+            T::print("waiting for connection\n");
+            let mut connection = T::init_connection().unwrap();
+            match Self::handle_client(&mut *connection) {
                 Ok(()) => return,
                 Err(()) => continue,
                 // Err(err) => match self.hal.handle_error(&err, &mut *connection) {
@@ -119,7 +111,7 @@ impl<RW: ReadWrite, T: Hal<RW>> Engine<RW, T> {
             };
         }
     }
-    fn read_msg_buffer(&self, connection: &mut RW) -> Vec<u8> {
+    fn read_msg_buffer(connection: &mut RW) -> Vec<u8> {
         let msg_size = connection.read_u64::<LittleEndian>().unwrap();
         let mut buff = Vec::with_capacity(msg_size as usize);
         buff.resize(msg_size as usize, 0);
@@ -127,7 +119,7 @@ impl<RW: ReadWrite, T: Hal<RW>> Engine<RW, T> {
         connection.read_exact(buff.as_mut_slice()).unwrap();
         buff
     }
-    fn handle_write(&self, message: &[u8]) -> Result<Response> {
+    fn handle_write(message: &[u8]) -> Result<Response, String> {
         let write_cmd: WriteCmd = minicbor::decode(message).unwrap();
         unsafe {
             let slice =
@@ -141,7 +133,7 @@ impl<RW: ReadWrite, T: Hal<RW>> Engine<RW, T> {
         })
     }
 
-    fn handle_read(&self, message: &[u8]) -> Result<Response> {
+    fn handle_read(message: &[u8]) -> Result<Response, String> {
         let read_cmd: ReadCmd = minicbor::decode(message).unwrap();
         unsafe {
             let mut read_buff = alloc::vec::Vec::<u8>::new();
@@ -154,12 +146,12 @@ impl<RW: ReadWrite, T: Hal<RW>> Engine<RW, T> {
                     buff: minicbor::bytes::ByteVec::from(read_buff),
                 }),
                 // TODO: make sure this is ok
-                Err(_) => Err(anyhow::anyhow!("Error reading from address")),
+                Err(_) => Err("Error reading from address".to_string()),
             }
         }
     }
 
-    fn make_call(&self, ptr: *const c_void, mut argunments: Vec<u64>) -> Result<u64> {
+    fn make_call(ptr: *const c_void, mut argunments: Vec<u64>) -> Result<u64, String> {
         // ABI call macro
         macro_rules! abi_call {
             ($($args:ty),*) => {
@@ -174,7 +166,7 @@ impl<RW: ReadWrite, T: Hal<RW>> Engine<RW, T> {
 
         // CODE:
         if argunments.len() >= 11 {
-            return Err(anyhow::anyhow!("Too many parameters"));
+            return Err("Too many params".to_string());
         }
         let ret_val = unsafe {
             match argunments.len() {
@@ -197,44 +189,43 @@ impl<RW: ReadWrite, T: Hal<RW>> Engine<RW, T> {
         Ok(ret_val)
     }
 
-    fn handle_call(&self, message: &[u8]) -> Result<Response> {
+    fn handle_call(message: &[u8]) -> Result<Response, String> {
         let call_cmd: CallCmd = minicbor::decode(message).unwrap();
-        let mut response = alloc::vec::Vec::<u8>::new();
 
-        let ret_val = self.make_call(call_cmd.address as *const c_void, call_cmd.argunments);
+        let ret_val = Self::make_call(call_cmd.address as *const c_void, call_cmd.argunments);
         if let Ok(ret_val) = ret_val {
             Ok(Response::FunctionExecuted { ret: ret_val })
         } else {
-            Err(anyhow::anyhow!("Error executing function"))
+            Err("Error executing function".to_string())
         }
     }
 
-    pub fn handle_client(&self, connection: &mut RW) -> core::result::Result<(), ()> {
+    pub fn handle_client(connection: &mut RW) -> core::result::Result<(), ()> {
         loop {
             let code = match connection.read_u32::<LittleEndian>() {
                 Ok(code) => code,
-                Err(err) => {
-                    self.hal.print("Restarting service\n");
+                Err(_err) => {
+                    T::print("Restarting service\n");
                     return Err(());
                 }
             };
 
-            let message_slc = self.read_msg_buffer(connection);
+            let message_slc = Self::read_msg_buffer(connection);
 
             // TODO: remove unwrap
             let res = match FromPrimitive::from_u32(code) {
-                Some(CMD::READ) => self.handle_read(message_slc.as_slice()),
-                Some(CMD::WRITE) => self.handle_write(message_slc.as_slice()),
-                Some(CMD::CALL) => self.handle_call(message_slc.as_slice()),
+                Some(CMD::READ) => Self::handle_read(message_slc.as_slice()),
+                Some(CMD::WRITE) => Self::handle_write(message_slc.as_slice()),
+                Some(CMD::CALL) => Self::handle_call(message_slc.as_slice()),
                 None => todo!(),
             };
 
             //TODO: FINISH
             let res = match res {
-                Ok(response) => ResponseStatus::Success { response: response },
+                Ok(response) => ResponseStatus::Success { response },
                 Err(err) => {
                     // Error type import
-                    ResponseStatus::Error
+                    ResponseStatus::Error { message: err }
                 } //handle_error(err, &mut *connection)?,
             };
             let mut res_buf = alloc::vec::Vec::<u8>::new();
@@ -247,6 +238,6 @@ impl<RW: ReadWrite, T: Hal<RW>> Engine<RW, T> {
     }
 }
 
-pub fn run<RW: ReadWrite, T: Hal<RW>>(hal: T) {
-    Engine::new(hal).run();
+pub fn run<RW: ReadWrite, H: Hal<RW>>() {
+    Engine::<RW, H>::run();
 }
