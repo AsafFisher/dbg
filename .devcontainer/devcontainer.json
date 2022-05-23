@@ -1,0 +1,76 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.233.0/containers/rust
+{
+	"name": "Rust",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"args": {
+			// Use the VARIANT arg to pick a Debian OS version: buster, bullseye
+			// Use bullseye when on local on arm64/Apple Silicon.
+			"VARIANT": "buster"
+		}
+	},
+	"runArgs": [
+		"--cap-add=SYS_PTRACE",
+		"--security-opt",
+		"seccomp=unconfined"
+	],
+
+	// Set *default* container specific settings.json values on container create.
+	"settings": {
+		"lldb.executable": "/usr/bin/lldb",
+		// VS Code don't watch files under ./target
+		"files.watcherExclude": {
+			"**/target/**": true
+		},
+		"rust-analyzer.checkOnSave.command": "clippy",
+		"terminal.integrated.profiles.linux": {
+			"zsh": {
+			  "path": "/usr/bin/zsh"
+			}
+		  },
+		  "terminal.integrated.defaultProfile.linux": "zsh"
+	},
+
+	// Add the IDs of extensions you want installed when the container is created.
+	"extensions": [
+		"vadimcn.vscode-lldb",
+		"mutantdino.resourcemonitor",
+		"matklad.rust-analyzer",
+		"tamasfe.even-better-toml",
+		"serayuzgur.crates",
+		"rust-lang.rust-analyzer"
+	],
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	// "postCreateCommand": "rustc --version",
+
+	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+	"remoteUser": "vscode",
+	"features": {
+		"docker-in-docker": "latest",
+		"docker-from-docker": "latest",
+		"kubectl-helm-minikube": "latest",
+		"terraform": "latest",
+		"git": "latest",
+		"git-lfs": "latest",
+		"github-cli": "latest",
+		"aws-cli": "latest",
+		"azure-cli": "latest",
+		"sshd": "latest",
+		"desktop-lite": "latest",
+		"homebrew": "latest",
+		"fish": "latest",
+		"python": "latest",
+		"golang": "latest",
+		"java": "lts",
+		"maven": "latest",
+		"gradle": "latest",
+		"ruby": "latest",
+		"powershell": "latest",
+		"dotnet": "latest"
+	}
+}
