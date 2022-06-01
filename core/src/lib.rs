@@ -89,7 +89,7 @@ pub enum CMD {
 pub trait Hal<RW: ReadWrite> {
     fn print(s: &str);
     fn init_connection() -> Result<Box<RW>, ()>;
-    fn handle_error(_err: &anyhow::Error, _connection: &mut RW) -> Result<(), ()>;
+    fn handle_error(_err: &str, _connection: &mut RW) -> Result<(), ()>;
 }
 
 struct Engine<RW: ReadWrite, H: Hal<RW>> {

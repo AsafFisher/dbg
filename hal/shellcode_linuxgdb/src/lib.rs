@@ -1,21 +1,19 @@
 #![no_std]
 #![feature(panic_info_message)]
+#![feature(core_intrinsics)]
 extern crate alloc;
 use alloc::boxed::Box;
 use core::arch::asm;
-use core::panic;
 use libcore::Hal;
 use rustix::io::OwnedFd;
 use rustix::net::{AddressFamily, Protocol, SocketType};
 use rustix::net::{IpAddr, Ipv4Addr, SocketAddr};
-#[macro_use]
-extern crate sc;
 
-const STDOUT: usize = 1;
+//const STDOUT: usize = 1;
 static PANIC_MESSAGE: &str = "unknown paniced!\n";
 #[panic_handler]
 fn panic(panic_info: &core::panic::PanicInfo) -> ! {
-    let string = match panic_info.message() {
+    let _string = match panic_info.message() {
         Some(s) => s.as_str().unwrap(),
         None => PANIC_MESSAGE,
     };
@@ -23,8 +21,8 @@ fn panic(panic_info: &core::panic::PanicInfo) -> ! {
     loop {
         unsafe {
             //rustix::fs::
-            syscall!(WRITE, STDOUT, string.as_ptr() as usize, string.len());
-            asm!("int 3");
+            //syscall!(WRITE, STDOUT, string.as_ptr() as usize, string.len());
+            core::intrinsics::breakpoint();
         }
     }
 }
@@ -71,11 +69,11 @@ impl core2::io::Write for LinuxConnection {
 }
 
 impl Hal<LinuxConnection> for LinuxHal {
-    fn print(s: &str) {
-        let res = unsafe { syscall!(WRITE, STDOUT, s.as_ptr() as usize, s.len()) };
-        if (res as isize) < 0 {
-            panic!("write failed");
-        }
+    fn print(_s: &str) {
+        // let res = unsafe { syscall!(WRITE, STDOUT, s.as_ptr() as usize, s.len()) };
+        // if (res as isize) < 0 {
+        //     panic!("write failed");
+        // }
     }
     fn init_connection() -> Result<Box<LinuxConnection>, ()> {
         // Create a libc socket
@@ -96,7 +94,7 @@ impl Hal<LinuxConnection> for LinuxHal {
         Ok(Box::new(listener))
     }
 
-    fn handle_error(_err: &anyhow::Error, _connection: &mut LinuxConnection) -> Result<(), ()> {
+    fn handle_error(_err: &str, _connection: &mut LinuxConnection) -> Result<(), ()> {
         Ok(())
     }
 }

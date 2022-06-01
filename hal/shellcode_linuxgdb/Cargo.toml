@@ -2,17 +2,14 @@
 edition = "2021"
 name = "hal-shellcode-linuxgdb"
 version = "0.1.0"
+resolver = "2"
 
 [lib]
 name = "hal_shellcode_linuxgdb"
 
 [dependencies]
-anyhow = {version = "1.0", default-features = false}
 coregdb = {path = "../../core", version = "0.1.0"}
-libc = {version = "0.2.119", default-features = false}
-syscalls = {version = "0.5.0", default-features = false}
 rustix = {version = "0.34", default-features = false}
-sc = "0.2.5"
 
 [dependencies.common]
 default-features = false
