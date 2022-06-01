@@ -19,8 +19,7 @@ fn panic(panic_info: &core::panic::PanicInfo) -> ! {
 
     loop {
         unsafe {
-            //rustix::fs::
-            //syscall!(WRITE, STDOUT, string.as_ptr() as usize, string.len());
+            rustix::io::write(rustix::io::stdout(), string.as_bytes()).unwrap_unchecked();
             core::intrinsics::breakpoint();
         }
     }
@@ -68,11 +67,12 @@ impl core2::io::Write for LinuxConnection {
 }
 
 impl Hal<LinuxConnection> for LinuxHal {
-    fn print(_s: &str) {
-        // let res = unsafe { syscall!(WRITE, STDOUT, s.as_ptr() as usize, s.len()) };
-        // if (res as isize) < 0 {
-        //     panic!("write failed");
-        // }
+    fn print(s: &str) {
+        unsafe {
+            rustix::io::write(rustix::io::stdout(), s.as_bytes()).unwrap_or_else(|_| {
+                panic!("PTY error");
+            })
+        };
     }
     fn init_connection() -> Result<Box<LinuxConnection>, ()> {
         // Create a libc socket
