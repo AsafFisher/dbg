@@ -19,6 +19,7 @@ SECTIONS
 		*(.bss)
 		*(.bss.*)
 		*(.got.*)
+		__environ = ABSOLUTE(.);
 	}
 
 
