@@ -4,7 +4,7 @@ from contextlib import contextmanager
 
 # artifact dir pathlib
 from pathlib import Path
-target_archs = ["aarch64", "x86_64"]
+target_archs = ["aarch", "x86_64"]
 
 # function that changes directory in a context manager
 @contextmanager

@@ -3,7 +3,6 @@
 #![feature(core_intrinsics)]
 extern crate alloc;
 use alloc::boxed::Box;
-use core::arch::asm;
 use libcore::Hal;
 use rustix::io::OwnedFd;
 use rustix::net::{AddressFamily, Protocol, SocketType};
