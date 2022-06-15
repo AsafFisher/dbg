@@ -3,6 +3,7 @@
 #![feature(core_intrinsics)]
 extern crate alloc;
 use alloc::boxed::Box;
+use common::ReadWrite;
 use libcore::Hal;
 use rustix::io::OwnedFd;
 use rustix::net::{AddressFamily, Protocol, SocketType};
@@ -12,7 +13,7 @@ use rustix::net::{IpAddr, Ipv4Addr, SocketAddr};
 static PANIC_MESSAGE: &str = "unknown paniced!\n";
 #[panic_handler]
 fn panic(panic_info: &core::panic::PanicInfo) -> ! {
-    let _string = match panic_info.message() {
+    let string = match panic_info.message() {
         Some(s) => s.as_str().unwrap(),
         None => PANIC_MESSAGE,
     };
@@ -27,16 +28,16 @@ fn panic(panic_info: &core::panic::PanicInfo) -> ! {
 
 struct LinuxHal;
 
-struct LinuxConnection {
+pub struct Connection {
     sock: OwnedFd,
 }
-impl LinuxConnection {
-    fn new(sock_fd: OwnedFd) -> LinuxConnection {
-        LinuxConnection { sock: sock_fd }
+impl Connection {
+    fn new(sock_fd: OwnedFd) -> Connection {
+        Connection { sock: sock_fd }
     }
 }
 
-impl core2::io::Read for LinuxConnection {
+impl core2::io::Read for Connection {
     fn read(&mut self, _buf: &mut [u8]) -> core2::io::Result<usize> {
         // read from socket libc
         match rustix::io::read(&self.sock, _buf) {
@@ -49,7 +50,7 @@ impl core2::io::Read for LinuxConnection {
     }
 }
 
-impl core2::io::Write for LinuxConnection {
+impl core2::io::Write for Connection {
     fn write(&mut self, _buf: &[u8]) -> core2::io::Result<usize> {
         // write to socket libc
         match rustix::io::write(&self.sock, _buf) {
@@ -66,39 +67,58 @@ impl core2::io::Write for LinuxConnection {
     }
 }
 
-impl Hal<LinuxConnection> for LinuxHal {
-    fn print(s: &str) {
-        unsafe {
-            rustix::io::write(rustix::io::stdout(), s.as_bytes()).unwrap_or_else(|_| {
-                panic!("PTY error");
-            })
-        };
-    }
-    fn init_connection() -> Result<Box<LinuxConnection>, ()> {
-        // Create a libc socket
-        let sock =
-            rustix::net::socket(AddressFamily::INET, SocketType::STREAM, Protocol::default())
-                .unwrap();
-        // Create SocketAddr
-        rustix::net::bind(
-            &sock,
-            &SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 12343),
-        )
-        .unwrap();
-        rustix::net::listen(&sock, 1).unwrap();
-        let client_sock = rustix::net::accept(&sock).unwrap();
-        let listener = LinuxConnection::new(client_sock);
-        // Maybe allow multi connection
-        //println!("Connected to {:?}", addr);
-        Ok(Box::new(listener))
-    }
-
-    fn handle_error(_err: &str, _connection: &mut LinuxConnection) -> Result<(), ()> {
-        Ok(())
-    }
+pub fn init_connection() -> Result<Box<Connection>, ()> {
+    // Create a libc socket
+    let sock =
+        rustix::net::socket(AddressFamily::INET, SocketType::STREAM, Protocol::default())
+            .unwrap();
+    // Create SocketAddr
+    rustix::net::bind(
+        &sock,
+        &SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 12343),
+    )
+    .unwrap();
+    rustix::net::listen(&sock, 1).unwrap();
+    let client_sock = rustix::net::accept(&sock).unwrap();
+    let listener = Connection::new(client_sock);
+    // Maybe allow multi connection
+    //println!("Connected to {:?}", addr);
+    Ok(Box::new(listener))
 }
 
-#[inline]
-pub fn hal_run() {
-    libcore::run::<LinuxConnection, LinuxHal>();
-}
+// impl Hal<LinuxConnection> for LinuxHal {
+//     fn print(s: &str) {
+//         unsafe {
+//             rustix::io::write(rustix::io::stdout(), s.as_bytes()).unwrap_or_else(|_| {
+//                 panic!("PTY error");
+//             })
+//         };
+//     }
+//     fn init_connection() -> Result<Box<LinuxConnection>, ()> {
+//         // Create a libc socket
+//         let sock =
+//             rustix::net::socket(AddressFamily::INET, SocketType::STREAM, Protocol::default())
+//                 .unwrap();
+//         // Create SocketAddr
+//         rustix::net::bind(
+//             &sock,
+//             &SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 12343),
+//         )
+//         .unwrap();
+//         rustix::net::listen(&sock, 1).unwrap();
+//         let client_sock = rustix::net::accept(&sock).unwrap();
+//         let listener = LinuxConnection::new(client_sock);
+//         // Maybe allow multi connection
+//         //println!("Connected to {:?}", addr);
+//         Ok(Box::new(listener))
+//     }
+
+//     fn handle_error(_err: &str, _connection: &mut LinuxConnection) -> Result<(), ()> {
+//         Ok(())
+//     }
+// }
+
+// #[inline]
+// pub fn hal_run() {
+//     libcore::run::<LinuxConnection, LinuxHal>();
+// }

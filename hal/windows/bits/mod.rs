@@ -1,4 +1,4 @@
 #[no_mangle]
-pub extern "Rust" fn print(){
+pub fn print() {
     println!("Shit");
 }

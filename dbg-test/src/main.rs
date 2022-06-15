@@ -8,8 +8,10 @@ use std::mem;
 const SHELLCODE: &[u8] = include_bytes!("../../text.data");
 const word: &str = "Hello world";
 fn main() {
-    let shellcode_block = MemoryMap::new(SHELLCODE.len(), &[MapReadable, MapWritable, MapExecutable]).unwrap();
-    let string_block = MemoryMap::new(word.len(), &[MapReadable, MapWritable, MapExecutable]).unwrap();
+    let shellcode_block =
+        MemoryMap::new(SHELLCODE.len(), &[MapReadable, MapWritable, MapExecutable]).unwrap();
+    let string_block =
+        MemoryMap::new(word.len(), &[MapReadable, MapWritable, MapExecutable]).unwrap();
     // print word's mem pointer:
     println!("{:p}", string_block.data());
     unsafe {

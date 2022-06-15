@@ -29,9 +29,9 @@ def run_build(arch):
     if "x86_64" in target:
         os.environ['RUSTFLAGS'] = "-C link-arg=-nostartfiles "
     rust_target = f"./{target}.json"
-    with chdir('./exes/shellcode_linux'):
+    with chdir('./exes/shellcode_linux2'):
         os.environ['RUSTFLAGS'] += '-C relocation-model=pie -C link-arg=-nostdlib -C link-arg=-static -C link-arg=-T./shellcode.ld' # Used to be pie -C target-feature=+crt-static -L/usr/lib/x86_64-linux-musl
-        os.system(f'cargo +nightly build --bin shellcode --release --verbose -Zbuild-std=core,alloc --target {rust_target}')  # 
+        os.system(f'cargo +nightly build --bin shellcode2 --release --verbose -Zbuild-std=core,alloc --target {rust_target}')  # 
     artifact_path = Path(f'./target/{target}/release/shellcode')
     CMD = f"rust-objcopy {artifact_path.absolute()} /dev/null --dump-section .text=text.data"
     os.system(CMD)
