@@ -17,6 +17,7 @@ use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::Deserialize;
 use static_alloc::Bump;
+use hal::Hal;
 
 #[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
 enum Response {
@@ -86,32 +87,19 @@ pub enum CMD {
     CALL = 2,
 }
 
-pub trait Hal<RW: ReadWrite> {
-    fn print(s: &str);
-    fn init_connection() -> Result<Box<RW>, ()>;
-    fn handle_error(_err: &str, _connection: &mut RW) -> Result<(), ()>;
-}
-
-struct Engine<RW: ReadWrite, H: Hal<RW>> {
-    _ph: core::marker::PhantomData<RW>,
-    _ph2: core::marker::PhantomData<fn(H) -> ()>,
-}
-impl<RW: ReadWrite, T: Hal<RW>> Engine<RW, T> {
+struct Engine;
+impl Engine {
     pub fn run() {
         loop {
-            T::print("waiting for connection\n");
-            let mut connection = T::init_connection().unwrap();
+            Hal::print("waiting for connection\n");
+            let mut connection = Hal::init_connection().unwrap();
             match Self::handle_client(&mut *connection) {
                 Ok(()) => return,
                 Err(()) => continue,
-                // Err(err) => match self.hal.handle_error(&err, &mut *connection) {
-                //     Ok(()) => continue,
-                //     Err(_) => todo!(),
-                // },
             };
         }
     }
-    fn read_msg_buffer(connection: &mut RW) -> Vec<u8> {
+    fn read_msg_buffer<RW: ReadWrite>(connection: &mut RW) -> Vec<u8> {
         let msg_size = connection.read_u64::<LittleEndian>().unwrap();
         let mut buff = Vec::with_capacity(msg_size as usize);
         buff.resize(msg_size as usize, 0);
@@ -200,12 +188,12 @@ impl<RW: ReadWrite, T: Hal<RW>> Engine<RW, T> {
         }
     }
 
-    pub fn handle_client(connection: &mut RW) -> core::result::Result<(), ()> {
+    pub fn handle_client<RW: ReadWrite>(connection: &mut RW) -> core::result::Result<(), ()> {
         loop {
             let code = match connection.read_u32::<LittleEndian>() {
                 Ok(code) => code,
                 Err(_err) => {
-                    T::print("Restarting service\n");
+                    Hal::print("Restarting service\n");
                     return Err(());
                 }
             };
@@ -238,6 +226,6 @@ impl<RW: ReadWrite, T: Hal<RW>> Engine<RW, T> {
     }
 }
 
-pub fn run<RW: ReadWrite, H: Hal<RW>>() {
-    Engine::<RW, H>::run();
+pub fn run() {
+    Engine::run();
 }

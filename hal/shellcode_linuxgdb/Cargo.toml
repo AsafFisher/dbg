@@ -1,14 +1,13 @@
 [package]
 edition = "2021"
-name = "hal-shellcode-linuxgdb"
+name = "hal-linux-um"
 version = "0.1.0"
 resolver = "2"
 
 [lib]
-name = "hal_shellcode_linuxgdb"
+name = "hal"
 
 [dependencies]
-coregdb = {path = "../../core", version = "0.1.0"}
 rustix = {version = "0.34", default-features = false}
 
 [dependencies.common]

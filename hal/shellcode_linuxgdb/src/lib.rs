@@ -3,7 +3,6 @@
 #![feature(core_intrinsics)]
 extern crate alloc;
 use alloc::boxed::Box;
-use libcore::Hal;
 use rustix::io::OwnedFd;
 use rustix::net::{AddressFamily, Protocol, SocketType};
 use rustix::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -12,7 +11,7 @@ use rustix::net::{IpAddr, Ipv4Addr, SocketAddr};
 static PANIC_MESSAGE: &str = "unknown paniced!\n";
 #[panic_handler]
 fn panic(panic_info: &core::panic::PanicInfo) -> ! {
-    let _string = match panic_info.message() {
+    let string = match panic_info.message() {
         Some(s) => s.as_str().unwrap(),
         None => PANIC_MESSAGE,
     };
@@ -25,13 +24,13 @@ fn panic(panic_info: &core::panic::PanicInfo) -> ! {
     }
 }
 
-struct LinuxHal;
+pub struct Hal;
 
-struct LinuxConnection {
+pub struct LinuxConnection {
     sock: OwnedFd,
 }
 impl LinuxConnection {
-    fn new(sock_fd: OwnedFd) -> LinuxConnection {
+    pub fn new(sock_fd: OwnedFd) -> LinuxConnection {
         LinuxConnection { sock: sock_fd }
     }
 }
@@ -66,15 +65,15 @@ impl core2::io::Write for LinuxConnection {
     }
 }
 
-impl Hal<LinuxConnection> for LinuxHal {
-    fn print(s: &str) {
+impl Hal {
+    pub fn print(s: &str) {
         unsafe {
             rustix::io::write(rustix::io::stdout(), s.as_bytes()).unwrap_or_else(|_| {
                 panic!("PTY error");
             })
         };
     }
-    fn init_connection() -> Result<Box<LinuxConnection>, ()> {
+    pub fn init_connection() -> Result<Box<LinuxConnection>, ()> {
         // Create a libc socket
         let sock =
             rustix::net::socket(AddressFamily::INET, SocketType::STREAM, Protocol::default())
@@ -96,9 +95,4 @@ impl Hal<LinuxConnection> for LinuxHal {
     fn handle_error(_err: &str, _connection: &mut LinuxConnection) -> Result<(), ()> {
         Ok(())
     }
-}
-
-#[inline]
-pub fn hal_run() {
-    libcore::run::<LinuxConnection, LinuxHal>();
 }
