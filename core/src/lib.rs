@@ -13,11 +13,11 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use common::ReadWrite;
 use core::ffi::c_void;
 use core2::io::Write;
+use hal::Hal;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::Deserialize;
 use static_alloc::Bump;
-use hal::Hal;
 
 #[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
 enum Response {
