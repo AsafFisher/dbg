@@ -20,7 +20,7 @@ byteorder = {git = "https://github.com/AsafFisher/byteorder", default-features =
 num-derive = {version = "0.3", default-features = false}
 num-traits = {version = "0.2", default-features = false}
 serde = {version = "1.0.130", default-features = false, features = ["derive"]}
-minicbor =  {version = "0.14.1", default-features = false, features = ["derive"]}
+minicbor =  {version = "0.18.0", default-features = false, features = ["derive", "alloc"]}
 serde-json-core = "0.4.0"
 static-alloc = "0.2.3"
 
