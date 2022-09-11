@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
     "core",
-    "dbg-test",
+    "tests",
     "common",
     "hal/stdgdb",
     "hal/shellcode_linuxgdb",
