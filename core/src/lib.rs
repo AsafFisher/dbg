@@ -3,9 +3,6 @@
 extern crate alloc;
 extern crate base64;
 
-//mod io_impl;
-
-use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::{string::ToString, vec::Vec};
 pub use base64::{decode, encode};
@@ -36,6 +33,10 @@ enum Response {
         #[n(0)]
         ret: u64,
     },
+    #[n(3)]
+    Disconnecting,
+    #[n(4)]
+    Shutdown,
 }
 #[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
 enum ResponseStatus {
@@ -85,6 +86,8 @@ pub enum CMD {
     READ = 0,
     WRITE = 1,
     CALL = 2,
+    DISCONNECT = 3,
+    SHUTDOWN = 4,
 }
 
 struct Engine;
@@ -94,7 +97,12 @@ impl Engine {
             Hal::print("waiting for connection\n");
             let mut connection = Hal::init_connection().unwrap();
             match Self::handle_client(&mut *connection) {
-                Ok(()) => return,
+                Ok(should_shut_down) => {
+                    if should_shut_down {
+                        Hal::print("Shutting down\n");
+                        return;
+                    }
+                }
                 Err(()) => continue,
             };
         }
@@ -188,8 +196,12 @@ impl Engine {
         }
     }
 
-    pub fn handle_client<RW: ReadWrite>(connection: &mut RW) -> core::result::Result<(), ()> {
+    pub fn handle_client<RW: ReadWrite>(connection: &mut RW) -> core::result::Result<bool, ()> {
+        let mut should_stop = None;
         loop {
+            if let Some(is_shutdown) = should_stop {
+                return Ok(is_shutdown);
+            }
             let code = match connection.read_u32::<LittleEndian>() {
                 Ok(code) => code,
                 Err(_err) => {
@@ -205,6 +217,14 @@ impl Engine {
                 Some(CMD::READ) => Self::handle_read(message_slc.as_slice()),
                 Some(CMD::WRITE) => Self::handle_write(message_slc.as_slice()),
                 Some(CMD::CALL) => Self::handle_call(message_slc.as_slice()),
+                Some(CMD::DISCONNECT) => {
+                    should_stop = Some(false);
+                    Ok(Response::Disconnecting)
+                }
+                Some(CMD::SHUTDOWN) => {
+                    should_stop = Some(true);
+                    Ok(Response::Shutdown)
+                }
                 None => todo!(),
             };
 

@@ -78,21 +78,20 @@ impl Hal {
         let sock =
             rustix::net::socket(AddressFamily::INET, SocketType::STREAM, Protocol::default())
                 .unwrap();
+
+        rustix::net::sockopt::set_socket_reuseaddr(&sock, true).expect("Cant setsockopt");
         // Create SocketAddr
         rustix::net::bind(
             &sock,
             &SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 12343),
         )
-        .unwrap();
+        .expect("Could not bind");
+
         rustix::net::listen(&sock, 1).unwrap();
         let client_sock = rustix::net::accept(&sock).unwrap();
         let listener = LinuxConnection::new(client_sock);
         // Maybe allow multi connection
         //println!("Connected to {:?}", addr);
         Ok(Box::new(listener))
-    }
-
-    fn handle_error(_err: &str, _connection: &mut LinuxConnection) -> Result<(), ()> {
-        Ok(())
     }
 }
