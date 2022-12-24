@@ -308,6 +308,8 @@ impl Engine {
                 let args = Self::read_msg_buffer(conn);
                 let args: HookPreCallResponse = minicbor::decode(&args).unwrap();
                 let mut return_value = 0;
+
+                // If client did not call the original hook function, we should not execute the original function
                 if args.call_original {
                     let args = args.hook_arguments;
                     (a, b, c, d, e, f, g, h, i, j, k, m) = (
@@ -324,7 +326,11 @@ impl Engine {
                         *args.get(10).unwrap_or_else(|| &0) as usize,
                         *args.get(11).unwrap_or_else(|| &0) as usize,
                     );
+
+                    // Call the actual function
                     return_value = hook.call_trampoline(a, b, c, d, e, f, g, h, i, j, k, m);
+
+                    // Report the return value to the client.
                     let mut return_value_buff = alloc::vec::Vec::<u8>::new();
                     minicbor::encode(
                         HookPostCall {
@@ -336,6 +342,7 @@ impl Engine {
                     Self::write_msg_buffer(conn, &return_value_buff);
                 }
 
+                // Read the return value that the client decided to return
                 let retval_raw = Self::read_msg_buffer(conn);
                 let recved_ret_val: HookPostCallResponse = minicbor::decode(&retval_raw).unwrap();
                 recved_ret_val.hook_return_value as usize
