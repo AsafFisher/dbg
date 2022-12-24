@@ -8,7 +8,7 @@ resolver = "2"
 name = "hal"
 
 [dependencies]
-rustix = {version = "0.34", default-features = false}
+rustix = {version = "0.36.3", default-features = false, features = ["mm", "net"]}
 
 [dependencies.common]
 default-features = false

@@ -2,4 +2,4 @@
 echo dirname "$0"
 python build.py $1 &&
 cd tests &&
-cargo test
+cargo test -- --nocapture

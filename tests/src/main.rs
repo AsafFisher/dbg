@@ -1,4 +1,5 @@
 // as the shellcode is not in the `.text` section, we can't execute it as it
+#![feature(core_intrinsics)]
 #[cfg(test)]
 mod tests {
     use core::slice;
@@ -9,8 +10,8 @@ mod tests {
     };
     use rstest::*;
     use serial_test::serial;
-    use std::mem;
     use std::str;
+    use std::{intrinsics::breakpoint, mem};
     use std::{
         ops::Deref,
         sync::mpsc::{channel, Receiver, Sender},
@@ -24,6 +25,13 @@ mod tests {
             return 1;
         }
         return fibbo(n - 1) + fibbo(n - 2);
+    }
+    extern "C" fn power(a: usize, b: usize) -> usize {
+        let mut d = a;
+        for _ in 0..b - 1 {
+            d = d * a;
+        }
+        d
     }
 
     fn spawn_communicate<T: Send + 'static, CF: Fn(Sender<T>) + Send + 'static>(
@@ -48,8 +56,9 @@ mod tests {
         let shellcode_block = generate_read_write_exec_page(SHELLCODE);
         tx.send(string_block.data() as usize).unwrap();
         unsafe {
-            let exec_shellcode: extern "C" fn() = mem::transmute(shellcode_block.data());
-            exec_shellcode();
+            let exec_shellcode: extern "C" fn(base_addr: usize) =
+                mem::transmute(shellcode_block.data());
+            exec_shellcode(shellcode_block.data() as usize);
         }
     }
 
@@ -132,5 +141,25 @@ mod tests {
             result = addr('fibbo_nth);
         });
         assert_eq!(debugger_ctrl.get::<usize>("result"), fibbo(fibbo_nth));
+    }
+
+    #[rstest]
+    #[serial]
+    fn hook_address(debugger_and_address: &usize, debugger_ctrl: &DebugerController) {
+        // Fuck it, check it before we read it.
+        let power_addr = power as *mut u8 as usize;
+        let num1 = 5;
+        let num2 = 2;
+        let fake_num1 = 3;
+        let fake_num2 = 4;
+        debugger_ctrl.run(python! {
+            def hook_func(original_hook, x, y):
+                assert x == 'num1, "Invalid Hook parameter"
+                assert y == 'num2, "Invalid Hook parameter"
+                return original_hook('fake_num1, 'fake_num2)
+            addr = proc.leak('power_addr);
+            addr.hook(0xe, hook_func)
+        });
+        assert_eq!(power(num1, num2), 3*3*3*3);
     }
 }

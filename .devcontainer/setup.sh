@@ -1,3 +1,4 @@
+sudo apt install gdb
 pip3 install --user -r requirements.txt
 rustup update
 rustup default nightly
