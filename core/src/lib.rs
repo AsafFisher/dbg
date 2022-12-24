@@ -260,6 +260,7 @@ impl Engine {
         }
     }
 
+    // We do not support recurrsion!
     fn generic_call_hook_handler(
         a: usize,
         b: usize,
@@ -283,6 +284,8 @@ impl Engine {
         };
 
         // Should be unique, maybe create a function that derives it from the hook address.
+        // To deal with this, we need to add a type for each of the hook callback requests. So in the client side,
+        // The python will handle differently new requests in the nested hook.
         let ret_val = match hook {
             Some((hook, conn)) => {
                 let args = [
