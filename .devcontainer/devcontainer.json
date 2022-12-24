@@ -56,5 +56,8 @@
 		"github-cli": "latest",
 		"fish": "latest",
 		"python": "latest",
+		"ghcr.io/devcontainers/features/sshd:1": {
+			"version": "latest"
+		}
 	}
 }

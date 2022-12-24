@@ -8,8 +8,8 @@ name = "libcore"
 path = "src/lib.rs"
 
 [features]
-default = ["linux-um"]
-linux-um = ["hal-linux-um"]
+default = ["linux_um"]
+linux_um = ["hal-linux-um"]
 linux-km = []
 
 [dependencies]
