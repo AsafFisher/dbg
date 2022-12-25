@@ -86,7 +86,6 @@ impl Engine {
                 Ok(_) => Ok(Response::BytesRead {
                     buff: minicbor::bytes::ByteVec::from(read_buff),
                 }),
-                // TODO: make sure this is ok
                 Err(_) => Err("Error reading from address".to_string()),
             }
         }
@@ -167,7 +166,6 @@ impl Engine {
 
             let message_slc = read_msg_buffer(connection);
 
-            // TODO: remove unwrap
             let res = match FromPrimitive::from_u32(code) {
                 Some(CMD::READ) => Self::handle_read(message_slc.as_slice()),
                 Some(CMD::WRITE) => Self::handle_write(message_slc.as_slice()),
@@ -185,13 +183,12 @@ impl Engine {
                 None => todo!(),
             };
 
-            //TODO: FINISH
             let res = match res {
                 Ok(response) => ResponseStatus::Success { response },
                 Err(err) => {
                     // Error type import
                     ResponseStatus::Error { message: err }
-                } //handle_error(err, &mut *connection)?,
+                }
             };
             let mut res_buf = alloc::vec::Vec::<u8>::new();
             minicbor::encode(res, &mut res_buf).unwrap();
