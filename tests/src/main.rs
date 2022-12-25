@@ -160,6 +160,6 @@ mod tests {
             addr = proc.leak('power_addr);
             addr.hook(0xe, hook_func)
         });
-        assert_eq!(power(num1, num2), 3*3*3*3);
+        assert_eq!(power(num1, num2), 3 * 3 * 3 * 3);
     }
 }
