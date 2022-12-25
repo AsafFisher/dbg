@@ -12,6 +12,7 @@ extern crate base64;
 use crate::hooks::{DetourHook, DynamicTrampoline};
 use alloc::string::String;
 use alloc::{string::ToString, vec::Vec};
+use arch::hook;
 pub use base64::{decode, encode};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use comm::message::{
@@ -22,41 +23,14 @@ use core::ffi::c_void;
 use core2::io::Read;
 use core2::io::Write;
 use hal::{Connection, Hal};
+use hooks::interactive_hook::initialize_interactive_hook;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::Deserialize;
 use static_alloc::Bump;
 
-#[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
-struct HookPrecall {
-    #[n(0)]
-    hook_arguments: Vec<u64>,
-}
-#[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
-
-struct HookPreCallResponse {
-    #[n(0)]
-    hook_arguments: Vec<u64>,
-    #[n(1)]
-    call_original: bool,
-}
-
-#[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
-struct HookPostCall {
-    #[n(0)]
-    hook_return_value: u64,
-}
-#[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
-struct HookPostCallResponse {
-    #[n(0)]
-    hook_return_value: u64,
-}
-
 #[global_allocator]
 static A: Bump<[u8; 1 << 16]> = Bump::uninit();
-
-#[cfg(feature = "linux_um")]
-static mut HOOK_LIST: Vec<(DetourHook<DynamicTrampoline>, Connection)> = Vec::new();
 
 #[derive(FromPrimitive, Deserialize)]
 pub enum CMD {
@@ -168,117 +142,9 @@ impl Engine {
         }
     }
 
-    // We do not support recurrsion!
-    fn generic_call_hook_handler(
-        a: usize,
-        b: usize,
-        c: usize,
-        d: usize,
-        e: usize,
-        f: usize,
-        g: usize,
-        h: usize,
-        i: usize,
-        j: usize,
-        k: usize,
-        m: usize,
-    ) -> usize {
-        let (mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut h, mut i, mut j, mut k, mut m) =
-            (a, b, c, d, e, f, g, h, i, j, k, m);
-        let hook = unsafe {
-            HOOK_LIST
-                .iter_mut()
-                .find(|(hook, _conn)| hook.callback == Self::generic_call_hook_handler)
-        };
-
-        // Should be unique, maybe create a function that derives it from the hook address.
-        // To deal with this, we need to add a type for each of the hook callback requests. So in the client side,
-        // The python will handle differently new requests in the nested hook.
-        let ret_val = match hook {
-            Some((hook, conn)) => {
-                let args = [
-                    a as u64, b as u64, c as u64, d as u64, e as u64, f as u64, g as u64, h as u64,
-                    i as u64, j as u64, k as u64, m as u64,
-                ];
-                let mut args_buff = alloc::vec::Vec::<u8>::new();
-
-                // TODO: Think how to handle errors.
-                minicbor::encode(
-                    HookPrecall {
-                        hook_arguments: args.to_vec(),
-                    },
-                    &mut args_buff,
-                )
-                .unwrap();
-                // TODO: Move all the message handling logic to a Message struct.
-                Self::write_msg_buffer(conn, &args_buff);
-
-                let args = Self::read_msg_buffer(conn);
-                let args: HookPreCallResponse = minicbor::decode(&args).unwrap();
-                let mut return_value = 0;
-
-                // If client did not call the original hook function, we should not execute the original function
-                if args.call_original {
-                    let args = args.hook_arguments;
-                    (a, b, c, d, e, f, g, h, i, j, k, m) = (
-                        *args.get(0).unwrap_or_else(|| &0) as usize,
-                        *args.get(1).unwrap_or_else(|| &0) as usize,
-                        *args.get(2).unwrap_or_else(|| &0) as usize,
-                        *args.get(3).unwrap_or_else(|| &0) as usize,
-                        *args.get(4).unwrap_or_else(|| &0) as usize,
-                        *args.get(5).unwrap_or_else(|| &0) as usize,
-                        *args.get(6).unwrap_or_else(|| &0) as usize,
-                        *args.get(7).unwrap_or_else(|| &0) as usize,
-                        *args.get(8).unwrap_or_else(|| &0) as usize,
-                        *args.get(9).unwrap_or_else(|| &0) as usize,
-                        *args.get(10).unwrap_or_else(|| &0) as usize,
-                        *args.get(11).unwrap_or_else(|| &0) as usize,
-                    );
-
-                    // Call the actual function
-                    return_value = hook.call_trampoline(a, b, c, d, e, f, g, h, i, j, k, m);
-
-                    // Report the return value to the client.
-                    let mut return_value_buff = alloc::vec::Vec::<u8>::new();
-                    minicbor::encode(
-                        HookPostCall {
-                            hook_return_value: return_value as u64,
-                        },
-                        &mut return_value_buff,
-                    )
-                    .unwrap();
-                    Self::write_msg_buffer(conn, &return_value_buff);
-                }
-
-                // Read the return value that the client decided to return
-                let retval_raw = Self::read_msg_buffer(conn);
-                let recved_ret_val: HookPostCallResponse = minicbor::decode(&retval_raw).unwrap();
-                recved_ret_val.hook_return_value as usize
-            }
-            None => 0,
-        };
-
-        ret_val
-    }
     fn handle_hook(message: &[u8]) -> Result<Response, String> {
         let hook_cmd: InstallHookCmd = minicbor::decode(message).unwrap();
-        let conn = Hal::init_connection(Some(hook_cmd.port as u16)).unwrap();
-
-        // Creating the hook
-        let hook = DetourHook::new(
-            unsafe { core::mem::transmute(hook_cmd.address) },
-            Self::generic_call_hook_handler,
-            hook_cmd.prefix_size as usize,
-        )?;
-
-        // Inserting the hook to a static mut global. Why?
-        // Because there is no way to share the shellcode's state with other threads that are already running.
-        // Yes, there is a race if a hook is enabled! Mutex needed.
-        unsafe { HOOK_LIST.push((hook, *conn)) };
-        let (hook, _conn) = unsafe { HOOK_LIST.last() }.unwrap();
-        unsafe {
-            hook.enable()?;
-        }
+        initialize_interactive_hook(hook_cmd)?;
         Ok(Response::HookInstalled)
     }
 
