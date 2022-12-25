@@ -16,8 +16,7 @@ use arch::hook;
 pub use base64::{decode, encode};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use comm::message::{
-    read_msg_buffer, CallCmd, InstallHookCmd, ReadCmd, Response, ResponseStatus,
-    WriteCmd,
+    read_msg_buffer, CallCmd, InstallHookCmd, ReadCmd, Response, ResponseStatus, WriteCmd,
 };
 use core::ffi::c_void;
 use core2::io::Read;
