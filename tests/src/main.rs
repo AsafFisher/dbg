@@ -170,5 +170,53 @@ mod tests {
         });
         assert_eq!(power(num1, num2), 5 * 5);
     }
+
+    #[rstest]
+    #[serial]
+    fn hook_address_no_original(debugger_and_address: &usize, debugger_ctrl: &DebugerController) {
+        // TODO: Make sure calling hook twice will result in change of the hook_func
+        let power_addr = power as *mut u8 as usize;
+        let num1 = 5;
+        let num2 = 2;
+        debugger_ctrl.run(python! {
+            def hook_func2(_, x, y):
+                assert x == 'num1, "Invalid Hook parameter"
+                assert y == 'num2, "Invalid Hook parameter"
+                return x + y
+            addr = proc.leak('power_addr)
+            hook = addr.hook(0xe, hook_func2)
+            hook.enable()
+        });
+        assert_eq!(power(num1, num2), num1 + num2);
+        debugger_ctrl.run(python! {
+            hook.disable()
+        });
+    }
+
+    #[rstest]
+    #[serial]
+    fn hook_address_different_param_call_original_contextmanager(
+        debugger_and_address: &usize,
+        debugger_ctrl: &DebugerController,
+    ) {
+        // Fuck it, check it before we read it.
+        let power_addr = power as *mut u8 as usize;
+        let num1 = 5;
+        let num2 = 2;
+        let fake_num1 = 3;
+        let fake_num2 = 4;
+        debugger_ctrl.run(python! {
+            def hook_func1(original_hook, x, y):
+                assert x == 'num1, "Invalid Hook parameter"
+                assert y == 'num2, "Invalid Hook parameter"
+                return original_hook('fake_num1, 'fake_num2)
+            addr = proc.leak('power_addr);
+            hook = addr.hook(0xe, hook_func1)
+            assert addr('num1, 'num2) == 'num1 ** 'num2
+            with hook.enabled():
+                assert addr('num1, 'num2) == 'fake_num1 ** 'fake_num2
+            assert addr('num1, 'num2) == 'num1 ** 'num2
+        });
+        assert_eq!(power(num1, num2), num1.pow(num2 as u32));
     }
 }

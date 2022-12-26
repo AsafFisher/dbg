@@ -104,7 +104,7 @@ def get_response_if_succeed(sock: socket):
     return response.data.data
 
 
-@dataclass(frozen=True)
+@dataclass
 class Hook:
     address: int
     func: Callable
@@ -152,9 +152,19 @@ class HookPool:
     ) -> Hook:
         if any(hook.address == address for hook in self.hooks):
             raise Exception("Hook already exists")
-        hook_thread = Thread(target=handle_hook, args=(port, hook_func))
-        hook_thread.start()
+        
+        # Creates a hook thread. It handles the comm with the debugger on hook context.
+        hook_thread = Thread(target=handle_hook)
         hook = Hook(address, hook_func, hook_thread, sock)
+        
+        # We do this because we want to pass the hook object into the thread so 
+        # when the hook's pyhton handling function changes, the thread will access the new one
+        # through the hook object
+        hook_thread._args=(port, hook)
+        
+        # Start handling hooks
+        hook_thread.start()
+        
         self.hooks.append(hook)
         return hook
 
@@ -196,6 +206,12 @@ class RemoteAddress:
         return get_response_if_succeed(self.sock).amount_written
 
     def hook(self, prefix_size: int, hook_func: Callable):
+        existing_hook = [i for i, hook in  enumerate(self.hook_poll.hooks) if hook.address == self.ptr]
+        # If a hook already exists, we just want to replace the hook_func, there is no need
+        # to recreate all the handling threads, etc...
+        if len(existing_hook) > 0:
+            self.hook_poll.hooks[existing_hook[0]].func = hook_func
+            return self.hook_poll.hooks[existing_hook[0]]
         self.sock.send(struct.pack("I", 5))
         # TODO: allocate port automatically
         port = 5555
@@ -210,7 +226,7 @@ class RemoteAddress:
         return hook
 
 
-def handle_hook(port, hook_func):
+def handle_hook(port, hook: Hook):
     with socket(AF_INET, SOCK_STREAM) as hook_soc:
         hook_soc.connect(("127.0.0.1", port))
         while True:
@@ -232,8 +248,8 @@ def handle_hook(port, hook_func):
                 original_func.original_called = False
 
                 # -1 because the first argument of hook_func is the original_func
-                ret_val = hook_func(
-                    original_func, *argz[: get_fn_param_count(hook_func) - 1]
+                ret_val = hook.func(
+                    original_func, *argz[: get_fn_param_count(hook.func) - 1]
                 )
 
                 # If original was not called we need to tell the debugger that it should not execute the original
