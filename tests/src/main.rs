@@ -219,4 +219,76 @@ mod tests {
         });
         assert_eq!(power(num1, num2), num1.pow(num2 as u32));
     }
+
+    #[rstest]
+    #[serial]
+    fn hook_address_enable_disable_many(
+        debugger_and_address: &usize,
+        debugger_ctrl: &DebugerController,
+    ) {
+        // Fuck it, check it before we read it.
+        let power_addr = power as *mut u8 as usize;
+        let num1 = 5;
+        let num2 = 2;
+        let fake_num1 = 3;
+        let fake_num2 = 4;
+        debugger_ctrl.run(python! {
+            def hook_func1(original_hook, x, y):
+                assert x == 'num1, "Invalid Hook parameter"
+                assert y == 'num2, "Invalid Hook parameter"
+                return original_hook('fake_num1, 'fake_num2)
+            addr = proc.leak('power_addr);
+            hook = addr.hook(0xe, hook_func1)
+            assert addr('num1, 'num2) == 'num1 ** 'num2
+            with hook.enabled():
+                assert addr('num1, 'num2) == 'fake_num1 ** 'fake_num2
+            assert addr('num1, 'num2) == 'num1 ** 'num2
+            with hook.enabled():
+                assert addr('num1, 'num2) == 'fake_num1 ** 'fake_num2
+            assert addr('num1, 'num2) == 'num1 ** 'num2
+            with hook.enabled():
+                assert addr('num1, 'num2) == 'fake_num1 ** 'fake_num2
+            assert addr('num1, 'num2) == 'num1 ** 'num2
+            with hook.enabled():
+                assert addr('num1, 'num2) == 'fake_num1 ** 'fake_num2
+            assert addr('num1, 'num2) == 'num1 ** 'num2
+            with hook.enabled():
+                assert addr('num1, 'num2) == 'fake_num1 ** 'fake_num2
+            assert addr('num1, 'num2) == 'num1 ** 'num2
+            
+            # Without contextlib
+            hook.enable()
+            assert addr('num1, 'num2) == 'fake_num1 ** 'fake_num2
+            hook.disable()
+            assert addr('num1, 'num2) == 'num1 ** 'num2
+            hook.enable()
+            assert addr('num1, 'num2) == 'fake_num1 ** 'fake_num2
+            hook.disable()
+            assert addr('num1, 'num2) == 'num1 ** 'num2
+            hook.enable()
+            assert addr('num1, 'num2) == 'fake_num1 ** 'fake_num2
+            hook.disable()
+            assert addr('num1, 'num2) == 'num1 ** 'num2
+            hook.enable()
+            assert addr('num1, 'num2) == 'fake_num1 ** 'fake_num2
+            hook.disable()
+            assert addr('num1, 'num2) == 'num1 ** 'num2
+
+            # Double enable and double disable
+            hook.enable()
+            hook.enable()
+            assert addr('num1, 'num2) == 'fake_num1 ** 'fake_num2
+            hook.disable()
+            hook.disable()
+            assert addr('num1, 'num2) == 'num1 ** 'num2
+            hook.enable()
+            hook.enable()
+            assert addr('num1, 'num2) == 'fake_num1 ** 'fake_num2
+            hook.disable()
+            hook.disable()
+            assert addr('num1, 'num2) == 'num1 ** 'num2
+        });
+        assert_eq!(power(num1, num2), num1.pow(num2 as u32));
+        
+    }
 }
