@@ -153,10 +153,12 @@ where
     }
 
     // Eanbles the hook
+    #[allow(dead_code)]
     pub unsafe fn enable(&self) -> Result<(), String> {
         self.patcher.enable()
     }
     // Disable the hook
+    #[allow(dead_code)]
     pub unsafe fn disable(&self) -> Result<(), String> {
         self.patcher.disable()
     }

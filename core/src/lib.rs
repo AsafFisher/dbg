@@ -1,6 +1,5 @@
 #![feature(slice_pattern)]
 #![feature(type_alias_impl_trait)]
-#![feature(inherent_associated_types)]
 #![feature(core_intrinsics)]
 #![no_std]
 mod arch;
@@ -9,10 +8,8 @@ mod hooks;
 
 extern crate alloc;
 extern crate base64;
-use crate::hooks::{DetourHook, DynamicTrampoline};
 use alloc::string::String;
 use alloc::{string::ToString, vec::Vec};
-use arch::hook;
 pub use base64::{decode, encode};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use comm::message::{
@@ -20,7 +17,6 @@ use comm::message::{
     WriteCmd,
 };
 use core::ffi::c_void;
-use core2::io::Read;
 use core2::io::Write;
 use hal::{Connection, Hal};
 use hooks::interactive_hook::{initialize_interactive_hook, toggle_interactive_hook};
@@ -34,13 +30,13 @@ static A: Bump<[u8; 1 << 16]> = Bump::uninit();
 
 #[derive(FromPrimitive, Deserialize)]
 pub enum CMD {
-    READ = 0,
-    WRITE = 1,
-    CALL = 2,
-    DISCONNECT = 3,
-    SHUTDOWN = 4,
-    INSTALL_HOOK = 5,
-    TOGGLE_HOOK = 6,
+    Read = 0,
+    Write = 1,
+    Call = 2,
+    Disconnect = 3,
+    Shutdown = 4,
+    InstallHook = 5,
+    ToggleHook = 6,
 }
 
 struct Engine;
@@ -149,7 +145,7 @@ impl Engine {
 
     fn handle_toggle_hook(message: &[u8]) -> Result<Response, String> {
         let hook_cmd: ToggleHookCmd = minicbor::decode(message).unwrap();
-        toggle_interactive_hook(hook_cmd);
+        toggle_interactive_hook(hook_cmd)?;
         Ok(Response::HookToggled)
     }
 
@@ -170,16 +166,16 @@ impl Engine {
             let message_slc = read_msg_buffer(connection);
 
             let res = match FromPrimitive::from_u32(code) {
-                Some(CMD::READ) => Self::handle_read(message_slc.as_slice()),
-                Some(CMD::WRITE) => Self::handle_write(message_slc.as_slice()),
-                Some(CMD::CALL) => Self::handle_call(message_slc.as_slice()),
-                Some(CMD::INSTALL_HOOK) => Self::handle_hook(message_slc.as_slice()),
-                Some(CMD::TOGGLE_HOOK) => Self::handle_toggle_hook(message_slc.as_slice()),
-                Some(CMD::DISCONNECT) => {
+                Some(CMD::Read) => Self::handle_read(message_slc.as_slice()),
+                Some(CMD::Write) => Self::handle_write(message_slc.as_slice()),
+                Some(CMD::Call) => Self::handle_call(message_slc.as_slice()),
+                Some(CMD::InstallHook) => Self::handle_hook(message_slc.as_slice()),
+                Some(CMD::ToggleHook) => Self::handle_toggle_hook(message_slc.as_slice()),
+                Some(CMD::Disconnect) => {
                     should_stop = Some(false);
                     Ok(Response::Disconnecting)
                 }
-                Some(CMD::SHUTDOWN) => {
+                Some(CMD::Shutdown) => {
                     should_stop = Some(true);
                     Ok(Response::Shutdown)
                 }

@@ -3,7 +3,6 @@
 #![feature(core_intrinsics)]
 extern crate alloc;
 use core::ffi::c_void;
-use core::intrinsics::breakpoint;
 use core::ops::{BitAnd, Not};
 
 use crate::alloc::string::ToString;

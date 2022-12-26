@@ -50,7 +50,6 @@ pub fn initialize_interactive_hook(hook_cmd: InstallHookCmd) -> Result<(), Strin
     // Because there is no way to share the shellcode's state with other threads that are already running.
     // Yes, there is a race if a hook is enabled! Mutex needed.
     unsafe { HOOK_LIST.push((hook, *conn)) };
-    let (hook, _conn) = unsafe { HOOK_LIST.last() }.unwrap();
 
     Ok(())
 }
@@ -118,7 +117,6 @@ fn generic_call_hook_handler(
             write_msg_buffer(conn, &args_buff);
             let args = read_msg_buffer(conn);
             let args: HookPreCallResponse = minicbor::decode(&args).unwrap();
-            let mut return_value = 0;
 
             // If client did not call the original hook function, we should not execute the original function
             if args.call_original {
@@ -139,7 +137,7 @@ fn generic_call_hook_handler(
                 );
 
                 // Call the actual function
-                return_value = hook.call_trampoline(a, b, c, d, e, f, g, h, i, j, k, m);
+                let return_value = hook.call_trampoline(a, b, c, d, e, f, g, h, i, j, k, m);
 
                 // Report the return value to the client.
                 let mut return_value_buff = alloc::vec::Vec::<u8>::new();

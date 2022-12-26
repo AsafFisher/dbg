@@ -11,7 +11,7 @@ mod tests {
     use rstest::*;
     use serial_test::serial;
     use std::str;
-    use std::{intrinsics::breakpoint, mem};
+    use std::mem;
     use std::{
         ops::Deref,
         sync::mpsc::{channel, Receiver, Sender},
