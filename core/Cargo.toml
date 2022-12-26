@@ -15,12 +15,14 @@ linux-km = []
 [dependencies]
 common = {version = "0.1.0", path = "../common"}
 
-base64 = {version = "0.13.0", default-features = false, features = ["alloc"]}
+base64 = {version = "0.20.0", default-features = false, features = ["alloc"]}
+
+# Twicked byteorder to match core2
 byteorder = {git = "https://github.com/AsafFisher/byteorder", default-features = false}
 num-derive = {version = "0.3", default-features = false}
 num-traits = {version = "0.2", default-features = false}
 serde = {version = "1.0.130", default-features = false, features = ["derive"]}
-minicbor =  {version = "0.18.0", default-features = false, features = ["derive", "alloc"]}
+minicbor =  {version = "0.19.0", default-features = false, features = ["derive", "alloc"]}
 static-alloc = "0.2.3"
 
 # Available HALs
@@ -29,4 +31,6 @@ hal-linux-um = {version = "0.1.0", path = "../hal/shellcode_linuxgdb", optional 
 [dependencies.core2]
 default-features = false
 features = ["nightly", "alloc"]
+
+# To update this dep, byteorder needs to be updated
 version = "0.3.2"
