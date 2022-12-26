@@ -145,7 +145,10 @@ mod tests {
 
     #[rstest]
     #[serial]
-    fn hook_address(debugger_and_address: &usize, debugger_ctrl: &DebugerController) {
+    fn hook_address_different_param_call_original(
+        debugger_and_address: &usize,
+        debugger_ctrl: &DebugerController,
+    ) {
         // Fuck it, check it before we read it.
         let power_addr = power as *mut u8 as usize;
         let num1 = 5;
@@ -153,13 +156,19 @@ mod tests {
         let fake_num1 = 3;
         let fake_num2 = 4;
         debugger_ctrl.run(python! {
-            def hook_func(original_hook, x, y):
+            def hook_func1(original_hook, x, y):
                 assert x == 'num1, "Invalid Hook parameter"
                 assert y == 'num2, "Invalid Hook parameter"
                 return original_hook('fake_num1, 'fake_num2)
             addr = proc.leak('power_addr);
-            addr.hook(0xe, hook_func)
+            hook = addr.hook(0xe, hook_func1)
+            hook.enable()
         });
         assert_eq!(power(num1, num2), 3 * 3 * 3 * 3);
+        debugger_ctrl.run(python! {
+            hook.disable()
+        });
+        assert_eq!(power(num1, num2), 5 * 5);
+    }
     }
 }

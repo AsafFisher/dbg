@@ -155,6 +155,19 @@ where
     pub unsafe fn enable(&self) -> Result<(), String> {
         self.patcher.enable()
     }
+    // Disable the hook
+    pub unsafe fn disable(&self) -> Result<(), String> {
+        self.patcher.disable()
+    }
+    // Eanbles the hook
+    pub unsafe fn toggle(&self, enabled: bool) -> Result<(), String> {
+        self.patcher.toggle_hook(enabled)
+    }
+
+    pub fn target(&self) -> *const () {
+        self.patcher.target
+    }
+
     pub fn call_trampoline(
         &self,
         a: usize,

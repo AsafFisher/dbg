@@ -16,13 +16,14 @@ use arch::hook;
 pub use base64::{decode, encode};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use comm::message::{
-    read_msg_buffer, CallCmd, InstallHookCmd, ReadCmd, Response, ResponseStatus, WriteCmd,
+    read_msg_buffer, CallCmd, InstallHookCmd, ReadCmd, Response, ResponseStatus, ToggleHookCmd,
+    WriteCmd,
 };
 use core::ffi::c_void;
 use core2::io::Read;
 use core2::io::Write;
 use hal::{Connection, Hal};
-use hooks::interactive_hook::initialize_interactive_hook;
+use hooks::interactive_hook::{initialize_interactive_hook, toggle_interactive_hook};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::Deserialize;
@@ -146,8 +147,10 @@ impl Engine {
         Ok(Response::HookInstalled)
     }
 
-    fn handle_toggle_hook(_message: &[u8]) -> Result<Response, String> {
-        Err("not implemented".to_string())
+    fn handle_toggle_hook(message: &[u8]) -> Result<Response, String> {
+        let hook_cmd: ToggleHookCmd = minicbor::decode(message).unwrap();
+        toggle_interactive_hook(hook_cmd);
+        Ok(Response::HookToggled)
     }
 
     pub fn handle_client(connection: &mut Connection) -> core::result::Result<bool, ()> {

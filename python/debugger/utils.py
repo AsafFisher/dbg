@@ -15,7 +15,7 @@ def list_to_struct(lst, struct_class, type_sprcifier=None, dynamic_condition=Non
         if type_sprcifier and type(field_type) == UnionType:
             field_type_tmp = type_sprcifier(instance, field)
             # Check that the type is valid
-            assert field_type_tmp in get_args(field_type)
+            assert field_type_tmp in get_args(field_type), field_type_tmp
             assert type(field_type_tmp) != UnionType, "Umbegiouse Union"
             field_type = field_type_tmp
 

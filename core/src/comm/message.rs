@@ -30,6 +30,8 @@ pub enum Response {
     Shutdown,
     #[n(5)]
     HookInstalled,
+    #[n(6)]
+    HookToggled,
 }
 #[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
 pub enum ResponseStatus {
@@ -87,7 +89,12 @@ pub struct InstallHookCmd {
 
 #[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
 pub struct ToggleHookCmd {
+    // Address of hook to enable
     #[n(0)]
+    pub address: u64,
+
+    // Enable/Disable
+    #[n(1)]
     pub enabled: bool,
 }
 

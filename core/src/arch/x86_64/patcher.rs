@@ -41,7 +41,7 @@ fn patch_and_unlock(dst_code: *const (), src: &[u8]) {
 }
 
 pub struct Patcher {
-    target: *const (),
+    pub target: *const (),
     bytes_to_write: Vec<u8>,
     original_bytes: Vec<u8>,
 }
@@ -88,7 +88,7 @@ impl Patcher {
         func_start.store(patch_value, core::sync::atomic::Ordering::Relaxed);
         Ok(())
     }
-    fn toggle_hook(&self, enabled: bool) -> Result<(), String> {
+    pub unsafe fn toggle_hook(&self, enabled: bool) -> Result<(), String> {
         unsafe {
             Hal::enable_write(slice::from_raw_parts_mut(
                 self.target as *mut u8,
@@ -113,10 +113,10 @@ impl Patcher {
         Ok(())
     }
 
-    pub fn enable(&self) -> Result<(), String> {
+    pub unsafe fn enable(&self) -> Result<(), String> {
         self.toggle_hook(true)
     }
-    pub fn disable(&self) -> Result<(), String> {
+    pub unsafe fn disable(&self) -> Result<(), String> {
         self.toggle_hook(false)
     }
 }

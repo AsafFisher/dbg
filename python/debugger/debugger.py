@@ -5,6 +5,7 @@ from socket import socket, AF_INET, SOCK_STREAM
 import struct
 from threading import Thread
 from typing import Callable, List
+from contextlib import contextmanager
 import cbor2
 
 from .utils import list_to_struct, get_fn_param_count
@@ -31,9 +32,14 @@ class HookInstalledResponse:
 
 
 @dataclass
+class HookToggledResponse:
+    pass
+
+
+@dataclass
 class Response:
     type: int
-    data: CallResponse | ReadResponse | WriteResponse | HookInstalledResponse
+    data: CallResponse | ReadResponse | WriteResponse | HookInstalledResponse | HookToggledResponse
 
 
 @dataclass
@@ -57,6 +63,7 @@ type_to_response_map = {
     1: WriteResponse,
     2: CallResponse,
     5: HookInstalledResponse,
+    6: HookToggledResponse,
 }
 
 
@@ -86,11 +93,121 @@ def recv_msg(sock: socket):
     return data
 
 
+def get_response_if_succeed(sock: socket):
+    response = list_to_struct(
+        cbor2.loads(recv_msg(sock)), StatusResponseWrapper, dbg_type_specifier
+    )
+
+    if not response.is_success():
+        raise OperationFailed(response.data)
+
+    return response.data.data
+
+
 @dataclass(frozen=True)
 class Hook:
     address: int
     func: Callable
     hook_thread: Thread
+    command_sock: socket
+
+    # Toggle on or off the hook
+    def toggle(self, enabled):
+        self.command_sock.send(struct.pack("I", 6))
+        send_msg(self.command_sock, cbor2.dumps([self.address, enabled]))
+        return get_response_if_succeed(self.command_sock)
+
+    # Enable the hook
+    def enable(self):
+        self.toggle(True)
+
+    # Disable the hook
+    def disable(self):
+        self.toggle(False)
+
+    @contextmanager
+    def enabled(self):
+        self.toggle(True)
+        try:
+            yield
+        except Exception as ex:
+            raise ex
+        finally:
+            self.toggle(False)
+
+
+class HookPool:
+    # TODO: remove hook
+    hooks: List[Hook]
+
+    def __init__(self) -> None:
+        self.hooks = []
+
+    def add_hook(
+        self,
+        address: int,
+        hook_func: Callable,
+        port: int,
+        sock: socket,
+    ) -> Hook:
+        if any(hook.address == address for hook in self.hooks):
+            raise Exception("Hook already exists")
+        hook_thread = Thread(target=handle_hook, args=(port, hook_func))
+        hook_thread.start()
+        hook = Hook(address, hook_func, hook_thread, sock)
+        self.hooks.append(hook)
+        return hook
+
+
+@dataclass(frozen=True)
+class RemoteAddress:
+    MACHINE_SIZE = 8
+    sock: socket
+    ptr: int
+    hook_poll: HookPool
+
+    def __call__(self, *args: int):
+        self.sock.send(struct.pack("I", 2))
+        send_msg(self.sock, cbor2.dumps([self.ptr, args]))
+        return get_response_if_succeed(self.sock).return_value
+
+    def __add__(self, val: int):
+        return RemoteAddress(self.ptr + val, socket)
+
+    def __iadd__(self, val: int):
+        self.ptr += val
+        return self
+
+    def __sub__(self, val: int):
+        return self.__add__(-val)
+
+    def __isub__(self, val: int):
+        return self.__iadd__(-val)
+
+    def read(self, size: int):
+
+        self.sock.send(struct.pack("I", 0))
+        send_msg(self.sock, cbor2.dumps([self.ptr, size]))
+        return get_response_if_succeed(self.sock).raw_data
+
+    def write(self, buffer: bytes):
+        self.sock.send(struct.pack("I", 1))
+        send_msg(self.sock, cbor2.dumps([self.ptr, buffer]))
+        return get_response_if_succeed(self.sock).amount_written
+
+    def hook(self, prefix_size: int, hook_func: Callable):
+        self.sock.send(struct.pack("I", 5))
+        # TODO: allocate port automatically
+        port = 5555
+        send_msg(self.sock, cbor2.dumps([self.ptr, prefix_size, port]))
+
+        import time
+
+        time.sleep(1)
+
+        hook = self.hook_poll.add_hook(self.ptr, hook_func, port, self.sock)
+        get_response_if_succeed(self.sock)
+        return hook
 
 
 def handle_hook(port, hook_func):
@@ -129,79 +246,6 @@ def handle_hook(port, hook_func):
 
             except Exception as ex:
                 print(ex)
-
-
-class HookPool:
-    hooks: List[Hook]
-
-    def __init__(self) -> None:
-        self.hooks = []
-
-    def add_hook(self, address: int, hook_func: Callable, port) -> bool:
-        if any(hook.address == address for hook in self.hooks):
-            raise Exception("Hook already exists")
-        hook_thread = Thread(target=handle_hook, args=(port, hook_func))
-        hook_thread.start()
-        self.hooks.append(Hook(address, hook_func, hook_thread))
-
-
-@dataclass(frozen=True)
-class RemoteAddress:
-    MACHINE_SIZE = 8
-    sock: socket
-    ptr: int
-    hook_poll: HookPool
-
-    def get_response_if_succeed(self):
-        response = list_to_struct(
-            cbor2.loads(recv_msg(self.sock)), StatusResponseWrapper, dbg_type_specifier
-        )
-
-        if not response.is_success():
-            raise OperationFailed(response.data)
-
-        return response.data.data
-
-    def __call__(self, *args: int):
-        self.sock.send(struct.pack("I", 2))
-        send_msg(self.sock, cbor2.dumps([self.ptr, args]))
-        return self.get_response_if_succeed().return_value
-
-    def __add__(self, val: int):
-        return RemoteAddress(self.ptr + val, socket)
-
-    def __iadd__(self, val: int):
-        self.ptr += val
-        return self
-
-    def __sub__(self, val: int):
-        return self.__add__(-val)
-
-    def __isub__(self, val: int):
-        return self.__iadd__(-val)
-
-    def read(self, size: int):
-
-        self.sock.send(struct.pack("I", 0))
-        send_msg(self.sock, cbor2.dumps([self.ptr, size]))
-        return self.get_response_if_succeed().raw_data
-
-    def write(self, buffer: bytes):
-        self.sock.send(struct.pack("I", 1))
-        send_msg(self.sock, cbor2.dumps([self.ptr, buffer]))
-        return self.get_response_if_succeed().amount_written
-
-    def hook(self, prefix_size: int, hook_func: Callable):
-        self.sock.send(struct.pack("I", 5))
-        port = 5555
-        send_msg(self.sock, cbor2.dumps([self.ptr, prefix_size, port]))
-
-        import time
-
-        time.sleep(1)
-
-        self.hook_poll.add_hook(self.ptr, hook_func, port)
-        self.get_response_if_succeed()
 
 
 class RemoteProcess:
