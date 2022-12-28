@@ -4,12 +4,11 @@ use alloc::{
 };
 use hal::{Connection, Hal};
 
-use crate::comm::message::{read_msg_buffer, write_msg_buffer, InstallHookCmd, ToggleHookCmd};
+use crate::comm::message::{
+    read_msg_buffer, write_msg_buffer, InstallHookCmd, ToggleHookCmd,
+};
 
 use super::{DetourHook, DynamicTrampoline};
-
-#[cfg(feature = "linux_um")]
-static mut HOOK_LIST: Vec<(DetourHook<DynamicTrampoline>, Connection)> = Vec::new();
 
 #[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
 struct HookPrecall {
@@ -36,38 +35,50 @@ struct HookPostCallResponse {
     hook_return_value: u64,
 }
 
-pub fn initialize_interactive_hook(hook_cmd: InstallHookCmd) -> Result<(), String> {
-    let conn = Hal::init_connection(Some(hook_cmd.port as u16)).unwrap();
-
-    // Creating the hook
-    let hook = DetourHook::new(
-        unsafe { core::mem::transmute(hook_cmd.address) },
-        generic_call_hook_handler,
-        hook_cmd.prefix_size as usize,
-    )?;
-
-    // Inserting the hook to a static mut global. Why?
-    // Because there is no way to share the shellcode's state with other threads that are already running.
-    // Yes, there is a race if a hook is enabled! Mutex needed.
-    unsafe { HOOK_LIST.push((hook, *conn)) };
-
-    Ok(())
+pub struct InteractiveHooks {
+    hooks: Vec<(DetourHook<DynamicTrampoline>, Connection)>,
 }
+#[cfg(feature = "linux_um")]
+pub static mut G_INTERACTIVE_HOOK: InteractiveHooks = InteractiveHooks { hooks: Vec::new() };
 
-pub fn toggle_interactive_hook(hook_cmd: ToggleHookCmd) -> Result<(), String> {
-    let hook = unsafe {
-        HOOK_LIST
-            .iter_mut()
-            .find(|(hook, _conn)| hook.target() as u64 == hook_cmd.address)
-    };
-    if let Some(hook) = hook {
-        let (detour, _) = hook;
+impl InteractiveHooks {
+    pub fn get_instance() -> &'static mut Self {
+        unsafe { &mut G_INTERACTIVE_HOOK }
+    }
 
-        // This will atomically write patch in the hook
-        unsafe { detour.toggle(hook_cmd.enabled)? };
+    pub fn initialize_interactive_hook(&mut self, hook_cmd: InstallHookCmd) -> Result<(), String> {
+        let conn = Hal::init_connection(Some(hook_cmd.port as u16)).unwrap();
+
+        // Creating the hook
+        let hook = DetourHook::<DynamicTrampoline>::new(
+            unsafe { core::mem::transmute(hook_cmd.address) },
+            generic_call_hook_handler,
+            hook_cmd.prefix_size as usize,
+        )?;
+
+        // Inserting the hook to a static mut global. Why?
+        // Because there is no way to share the shellcode's state with other threads that are already running.
+        // Yes, there is a race if a hook is enabled! Mutex needed.
+        let a: &mut Vec<(DetourHook<DynamicTrampoline>, Connection)> = self.hooks.as_mut();
+        a.push((hook, conn));
+
         Ok(())
-    } else {
-        Err("Cannot toggle hook, hook not found".to_string())
+    }
+ 
+    pub fn toggle_interactive_hook(&mut self, hook_cmd: ToggleHookCmd) -> Result<(), String> {
+        let hook = self
+            .hooks
+            .iter_mut()
+            .find(|(hook, _conn)| hook.target() as u64 == hook_cmd.address);
+        if let Some(hook) = hook {
+            let (detour, _) = hook;
+
+            // This will atomically write patch in the hook
+            unsafe { detour.toggle(hook_cmd.enabled)? };
+            Ok(())
+        } else {
+            Err("Cannot toggle hook, hook not found".to_string())
+        }
     }
 }
 
@@ -89,7 +100,8 @@ fn generic_call_hook_handler(
     let (mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut h, mut i, mut j, mut k, mut m) =
         (a, b, c, d, e, f, g, h, i, j, k, m);
     let hook = unsafe {
-        HOOK_LIST
+        G_INTERACTIVE_HOOK
+            .hooks
             .iter_mut()
             .find(|(hook, _conn)| hook.callback == generic_call_hook_handler)
     };

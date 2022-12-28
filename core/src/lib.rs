@@ -19,7 +19,7 @@ use comm::message::{
 use core::ffi::c_void;
 use core2::io::Write;
 use hal::{Connection, Hal};
-use hooks::interactive_hook::{initialize_interactive_hook, toggle_interactive_hook};
+use hooks::interactive_hook::InteractiveHooks;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use serde::Deserialize;
@@ -39,13 +39,25 @@ pub enum CMD {
     ToggleHook = 6,
 }
 
-struct Engine;
-impl Engine {
-    pub fn run() {
+struct Engine<'a> {
+    connection: Connection,
+    hooks: &'a mut InteractiveHooks,
+}
+
+impl Engine<'_> {
+    pub fn new() -> Engine<'static> {
+        let connection = Hal::init_connection(None).unwrap();
+        let hooks = InteractiveHooks::get_instance();
+        Engine {
+            connection: connection,
+            hooks: hooks,
+        }
+    }
+    pub fn run(&mut self) {
         loop {
             Hal::print("waiting for connection\n");
-            let mut connection = Hal::init_connection(None).unwrap();
-            match Self::handle_client(&mut *connection) {
+
+            match self.handle_client() {
                 Ok(should_shut_down) => {
                     if should_shut_down {
                         Hal::print("Shutting down\n");
@@ -137,25 +149,25 @@ impl Engine {
         }
     }
 
-    fn handle_hook(message: &[u8]) -> Result<Response, String> {
+    fn install_hook(&mut self, message: &[u8]) -> Result<Response, String> {
         let hook_cmd: InstallHookCmd = minicbor::decode(message).unwrap();
-        initialize_interactive_hook(hook_cmd)?;
+        self.hooks.initialize_interactive_hook(hook_cmd)?;
         Ok(Response::HookInstalled)
     }
 
-    fn handle_toggle_hook(message: &[u8]) -> Result<Response, String> {
+    fn handle_toggle_hook(&mut self, message: &[u8]) -> Result<Response, String> {
         let hook_cmd: ToggleHookCmd = minicbor::decode(message).unwrap();
-        toggle_interactive_hook(hook_cmd)?;
+        self.hooks.toggle_interactive_hook(hook_cmd)?;
         Ok(Response::HookToggled)
     }
 
-    pub fn handle_client(connection: &mut Connection) -> core::result::Result<bool, ()> {
+    pub fn handle_client(&mut self) -> core::result::Result<bool, ()> {
         let mut should_stop = None;
         loop {
             if let Some(is_shutdown) = should_stop {
                 return Ok(is_shutdown);
             }
-            let code = match connection.read_u32::<LittleEndian>() {
+            let code = match self.connection.read_u32::<LittleEndian>() {
                 Ok(code) => code,
                 Err(_err) => {
                     Hal::print("Restarting service\n");
@@ -163,14 +175,15 @@ impl Engine {
                 }
             };
 
-            let message_slc = read_msg_buffer(connection);
+            let message_slc = read_msg_buffer(&mut self.connection);
 
             let res = match FromPrimitive::from_u32(code) {
                 Some(CMD::Read) => Self::handle_read(message_slc.as_slice()),
                 Some(CMD::Write) => Self::handle_write(message_slc.as_slice()),
                 Some(CMD::Call) => Self::handle_call(message_slc.as_slice()),
-                Some(CMD::InstallHook) => Self::handle_hook(message_slc.as_slice()),
-                Some(CMD::ToggleHook) => Self::handle_toggle_hook(message_slc.as_slice()),
+                Some(CMD::InstallHook) => self.install_hook(message_slc.as_slice()),
+                Some(CMD::ToggleHook) => self.handle_toggle_hook(message_slc.as_slice()),
+
                 Some(CMD::Disconnect) => {
                     should_stop = Some(false);
                     Ok(Response::Disconnecting)
@@ -191,14 +204,15 @@ impl Engine {
             };
             let mut res_buf = alloc::vec::Vec::<u8>::new();
             minicbor::encode(res, &mut res_buf).unwrap();
-            connection
+            self.connection
                 .write_u64::<LittleEndian>(res_buf.len() as u64)
                 .unwrap();
-            connection.write(res_buf.as_slice()).unwrap();
+            self.connection.write(res_buf.as_slice()).unwrap();
         }
     }
 }
 
 pub fn run() {
-    Engine::run();
+    let mut engine = Engine::new();
+    engine.run();
 }

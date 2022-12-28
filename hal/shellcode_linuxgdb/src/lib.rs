@@ -6,7 +6,6 @@ use core::ffi::c_void;
 use core::ops::{BitAnd, Not};
 
 use crate::alloc::string::ToString;
-use alloc::boxed::Box;
 use alloc::string::String;
 use rustix::fd::OwnedFd;
 use rustix::net::{AddressFamily, Protocol, SocketType};
@@ -94,7 +93,7 @@ impl Hal {
             })
         };
     }
-    pub fn init_connection(port: Option<u16>) -> Result<Box<Connection>, ()> {
+    pub fn init_connection(port: Option<u16>) -> Result<Connection, ()> {
         // Create a libc socket
         let sock =
             rustix::net::socket(AddressFamily::INET, SocketType::STREAM, Protocol::default())
@@ -112,7 +111,7 @@ impl Hal {
         let listener = Connection::new(client_sock);
         // Maybe allow multi connection
         //println!("Connected to {:?}", addr);
-        Ok(Box::new(listener))
+        Ok(listener)
     }
 
     pub fn enable_write(address: &mut [u8]) -> Result<(), String> {

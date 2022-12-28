@@ -10,8 +10,8 @@ mod tests {
     };
     use rstest::*;
     use serial_test::serial;
-    use std::str;
     use std::mem;
+    use std::str;
     use std::{
         ops::Deref,
         sync::mpsc::{channel, Receiver, Sender},
@@ -255,7 +255,7 @@ mod tests {
             with hook.enabled():
                 assert addr('num1, 'num2) == 'fake_num1 ** 'fake_num2
             assert addr('num1, 'num2) == 'num1 ** 'num2
-            
+
             # Without contextlib
             hook.enable()
             assert addr('num1, 'num2) == 'fake_num1 ** 'fake_num2
@@ -289,6 +289,5 @@ mod tests {
             assert addr('num1, 'num2) == 'num1 ** 'num2
         });
         assert_eq!(power(num1, num2), num1.pow(num2 as u32));
-        
     }
 }
