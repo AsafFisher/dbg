@@ -5,7 +5,7 @@ use alloc::{
 use hal::{Connection, Hal};
 
 use crate::comm::message::{
-    read_msg_buffer, write_msg_buffer, InstallHookCmd, ToggleHookCmd,
+    read_msg_buffer, write_msg_buffer, InstallHookCmd, ToggleHookCmd, UninstallHookCmd,
 };
 
 use super::{DetourHook, DynamicTrampoline};
@@ -64,7 +64,24 @@ impl InteractiveHooks {
 
         Ok(())
     }
- 
+
+    pub fn uninintialize_interactive_hook(
+        &mut self,
+        hook_cmd: UninstallHookCmd,
+    ) -> Result<(), String> {
+        if let Some((index, _)) = self
+            .hooks
+            .iter_mut()
+            .enumerate()
+            .find(|(_, (hook, _))| hook.target() as u64 == hook_cmd.address)
+        {
+            self.hooks.remove(index);
+            Ok(())
+        } else {
+            Err("Hook was not found".to_string())
+        }
+    }
+
     pub fn toggle_interactive_hook(&mut self, hook_cmd: ToggleHookCmd) -> Result<(), String> {
         let hook = self
             .hooks

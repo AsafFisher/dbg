@@ -32,6 +32,8 @@ pub enum Response {
     HookInstalled,
     #[n(6)]
     HookToggled,
+    #[n(7)]
+    HookUninstalled,
 }
 #[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
 pub enum ResponseStatus {
@@ -85,6 +87,13 @@ pub struct InstallHookCmd {
     // The port requested
     #[n(2)]
     pub port: u64,
+}
+
+#[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
+pub struct UninstallHookCmd {
+    // Address to hook
+    #[n(0)]
+    pub address: u64,
 }
 
 #[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]

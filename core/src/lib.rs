@@ -14,7 +14,7 @@ pub use base64::{decode, encode};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use comm::message::{
     read_msg_buffer, CallCmd, InstallHookCmd, ReadCmd, Response, ResponseStatus, ToggleHookCmd,
-    WriteCmd,
+    UninstallHookCmd, WriteCmd,
 };
 use core::ffi::c_void;
 use core2::io::Write;
@@ -37,6 +37,7 @@ pub enum CMD {
     Shutdown = 4,
     InstallHook = 5,
     ToggleHook = 6,
+    UninstallHook = 7,
 }
 
 struct Engine<'a> {
@@ -155,6 +156,12 @@ impl Engine<'_> {
         Ok(Response::HookInstalled)
     }
 
+    fn uninstall_hook(&mut self, message: &[u8]) -> Result<Response, String> {
+        let hook_cmd: UninstallHookCmd = minicbor::decode(message).unwrap();
+        self.hooks.uninintialize_interactive_hook(hook_cmd)?;
+        Ok(Response::HookUninstalled)
+    }
+
     fn handle_toggle_hook(&mut self, message: &[u8]) -> Result<Response, String> {
         let hook_cmd: ToggleHookCmd = minicbor::decode(message).unwrap();
         self.hooks.toggle_interactive_hook(hook_cmd)?;
@@ -182,6 +189,7 @@ impl Engine<'_> {
                 Some(CMD::Write) => Self::handle_write(message_slc.as_slice()),
                 Some(CMD::Call) => Self::handle_call(message_slc.as_slice()),
                 Some(CMD::InstallHook) => self.install_hook(message_slc.as_slice()),
+                Some(CMD::UninstallHook) => self.uninstall_hook(message_slc.as_slice()),
                 Some(CMD::ToggleHook) => self.handle_toggle_hook(message_slc.as_slice()),
 
                 Some(CMD::Disconnect) => {
