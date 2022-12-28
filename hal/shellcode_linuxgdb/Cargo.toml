@@ -10,12 +10,7 @@ name = "hal"
 [dependencies]
 rustix = {version = "0.36.3", default-features = false, features = ["mm", "net"]}
 
-[dependencies.common]
-default-features = false
-path = "../../common"
-version = "0.1.0"
-
 [dependencies.core2]
 default-features = false
 features = ["nightly", "alloc"]
-version = "0.3.2"
+version = "0.3.3"

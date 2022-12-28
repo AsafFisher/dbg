@@ -32,4 +32,4 @@ default-features = false
 features = ["nightly", "alloc"]
 
 # To update this dep, byteorder needs to be updated
-version = "0.3.2"
+version = "0.3.3"
