@@ -92,7 +92,6 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "byteorder 1.4.3 (git+https://github.com/AsafFisher/byteorder)",
- "common",
  "core2 0.3.3",
  "hal-linux-um",
  "minicbor",
@@ -250,7 +249,6 @@ dependencies = [
 name = "hal-linux-um"
 version = "0.1.0"
 dependencies = [
- "common",
  "core2 0.3.3",
  "rustix",
 ]
@@ -261,7 +259,6 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "byteorder 1.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "common",
  "core2 0.4.0",
 ]
 
@@ -717,7 +714,6 @@ name = "standard-linuxgdb"
 version = "0.1.0"
 dependencies = [
  "bincode",
- "common",
  "core2 0.3.3",
  "coregdb",
 ]

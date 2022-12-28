@@ -13,7 +13,6 @@ linux_um = ["hal-linux-um"]
 linux-km = []
 
 [dependencies]
-common = {version = "0.1.0", path = "../common"}
 
 base64 = {version = "0.20.0", default-features = false, features = ["alloc"]}
 
