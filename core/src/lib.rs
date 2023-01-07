@@ -40,15 +40,15 @@ pub enum CMD {
     UninstallHook = 7,
 }
 
-struct Engine<'a> {
+struct Engine {
     connection: Connection,
-    hooks: &'a mut InteractiveHooks,
+    hooks: InteractiveHooks,
 }
 
-impl Engine<'_> {
-    pub fn new() -> Engine<'static> {
+impl Engine {
+    pub fn new() -> Engine {
         let connection = Hal::init_connection(None).unwrap();
-        let hooks = InteractiveHooks::get_instance();
+        let hooks = InteractiveHooks::new();
         Engine {
             connection: connection,
             hooks: hooks,

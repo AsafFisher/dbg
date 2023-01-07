@@ -35,13 +35,14 @@ struct HookPostCallResponse {
     hook_return_value: u64,
 }
 
-pub struct InteractiveHooks {
+pub struct InteractiveHooksInner {
     hooks: Vec<(DetourHook<DynamicTrampoline>, Connection)>,
 }
 #[cfg(feature = "linux_um")]
-pub static mut G_INTERACTIVE_HOOK: InteractiveHooks = InteractiveHooks { hooks: Vec::new() };
+pub static mut G_INTERACTIVE_HOOK: InteractiveHooksInner =
+    InteractiveHooksInner { hooks: Vec::new() };
 
-impl InteractiveHooks {
+impl InteractiveHooksInner {
     pub fn get_instance() -> &'static mut Self {
         unsafe { &mut G_INTERACTIVE_HOOK }
     }
@@ -96,6 +97,36 @@ impl InteractiveHooks {
         } else {
             Err("Cannot toggle hook, hook not found".to_string())
         }
+    }
+
+    pub fn drop_all_hooks(&mut self) {
+        self.hooks.clear()
+    }
+}
+
+pub struct InteractiveHooks;
+
+impl InteractiveHooks {
+    pub fn new() -> Self {
+        Self
+    }
+    pub fn initialize_interactive_hook(&mut self, hook_cmd: InstallHookCmd) -> Result<(), String> {
+        InteractiveHooksInner::get_instance().initialize_interactive_hook(hook_cmd)
+    }
+    pub fn uninintialize_interactive_hook(
+        &mut self,
+        hook_cmd: UninstallHookCmd,
+    ) -> Result<(), String> {
+        InteractiveHooksInner::get_instance().uninintialize_interactive_hook(hook_cmd)
+    }
+    pub fn toggle_interactive_hook(&mut self, hook_cmd: ToggleHookCmd) -> Result<(), String> {
+        InteractiveHooksInner::get_instance().toggle_interactive_hook(hook_cmd)
+    }
+}
+
+impl Drop for InteractiveHooks {
+    fn drop(&mut self) {
+        InteractiveHooksInner::get_instance().drop_all_hooks()
     }
 }
 

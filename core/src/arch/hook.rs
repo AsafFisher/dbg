@@ -1,5 +1,6 @@
 use alloc::vec;
 use alloc::{string::String, vec::Vec};
+use hal::Hal;
 
 use super::x86_64::branch::{generate_absolute_branch, ABSOLUTE_BRANCH_SIZE};
 use super::x86_64::patcher::Patcher;
@@ -190,6 +191,13 @@ where
     }
 }
 
+impl<T: Trampoline> Drop for DetourHook<T> {
+    fn drop(&mut self) {
+        unsafe {
+            self.disable();
+        }
+    }
+}
 #[cfg(test)]
 mod test {
     fn main() {}
