@@ -1,14 +1,16 @@
 [package]
-name = "hal-stdgdb"
-version = "0.1.0"
 edition = "2021"
-
+name = "hal-linux-um"
+version = "0.1.0"
+resolver = "2"
 
 [lib]
-name = "hal_stdgdb"
+name = "hal_linux_um"
 
 [dependencies]
-bincode = "1.3.3"
-byteorder = "1.4.3"
+rustix = {version = "0.36.3", default-features = false, features = ["mm", "net"]}
+
 [dependencies.core2]
-version = "0.4.0"
+default-features = false
+features = ["nightly", "alloc"]
+version = "0.3.3"
