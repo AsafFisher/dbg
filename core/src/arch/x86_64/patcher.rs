@@ -1,11 +1,11 @@
 use core::sync::atomic::AtomicU64;
 
+use crate::hal::Hal;
 use alloc::{
     slice,
     string::{String, ToString},
     vec::Vec,
 };
-use hal::Hal;
 
 use super::branch::generate_relative_branch;
 

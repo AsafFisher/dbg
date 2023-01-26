@@ -1,11 +1,11 @@
 [package]
 edition = "2021"
-name = "hal-linux-um"
+name = "hal-linux-um-shellcode"
 version = "0.1.0"
 resolver = "2"
 
 [lib]
-name = "hal"
+name = "hal_linux_um_shellcode"
 
 [dependencies]
 rustix = {version = "0.36.3", default-features = false, features = ["mm", "net"]}

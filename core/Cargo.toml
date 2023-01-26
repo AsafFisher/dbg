@@ -8,9 +8,9 @@ name = "libcore"
 path = "src/lib.rs"
 
 [features]
-default = ["linux_um"]
+default = ["linux_um_shellcode"]
+linux_um_shellcode = ["hal-linux-um-shellcode"]
 linux_um = ["hal-linux-um"]
-linux-km = []
 
 [dependencies]
 
@@ -25,8 +25,8 @@ minicbor =  {version = "0.19.0", default-features = false, features = ["derive",
 static-alloc = "0.2.3"
 
 # Available HALs
-hal-linux-um = {version = "0.1.0", path = "../hal/shellcode_linuxgdb", optional = true}
-
+hal-linux-um-shellcode = {version = "0.1.0", path = "../hal/shellcode_linuxgdb", optional = true}
+hal-linux-um = {version = "0.1.0", path = "../hal/stdgdb", optional = true}
 [dependencies.core2]
 default-features = false
 features = ["nightly", "alloc"]

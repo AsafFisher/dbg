@@ -1,10 +1,10 @@
+use crate::hal::Connection;
 use alloc::string::String;
 use alloc::vec::Vec;
 use byteorder::LittleEndian;
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use core2::io::Read;
 use core2::io::Write;
-use hal::Connection;
 use minicbor;
 
 #[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]

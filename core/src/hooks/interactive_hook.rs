@@ -1,8 +1,8 @@
+use crate::hal::{Connection, Hal};
 use alloc::{
     string::{String, ToString},
     vec::Vec,
 };
-use hal::{Connection, Hal};
 
 use crate::comm::message::{
     read_msg_buffer, write_msg_buffer, InstallHookCmd, ToggleHookCmd, UninstallHookCmd,
@@ -38,7 +38,7 @@ struct HookPostCallResponse {
 pub struct InteractiveHooksInner {
     hooks: Vec<(DetourHook<DynamicTrampoline>, Connection)>,
 }
-#[cfg(feature = "linux_um")]
+
 pub static mut G_INTERACTIVE_HOOK: InteractiveHooksInner =
     InteractiveHooksInner { hooks: Vec::new() };
 
