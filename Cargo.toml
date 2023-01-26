@@ -5,6 +5,7 @@ members = [
     "tests",
     "hal/stdgdb",
     "hal/shellcode_linuxgdb",
+    "python/debugger_core",
     "exes/standard",
     "exes/shellcode_linux"
     # "hal/windows"
