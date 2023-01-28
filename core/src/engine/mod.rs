@@ -1,7 +1,7 @@
 extern crate base64;
 use crate::comm::message::{
     read_msg_buffer, CallCmd, InstallHookCmd, ReadCmd, Response, ResponseStatus, ToggleHookCmd,
-    UninstallHookCmd, WriteCmd,
+    UninstallHookCmd, WriteCmd, CMD
 };
 use crate::hal::{Connection, Hal};
 use crate::hooks::interactive_hook::InteractiveHooks;
@@ -11,25 +11,11 @@ pub use base64::{decode, encode};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use core::ffi::c_void;
 use core2::io::Write;
-use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-use serde::Deserialize;
 use static_alloc::Bump;
 
 #[global_allocator]
 static A: Bump<[u8; 1 << 16]> = Bump::uninit();
-
-#[derive(FromPrimitive, Deserialize)]
-pub enum CMD {
-    Read = 0,
-    Write = 1,
-    Call = 2,
-    Disconnect = 3,
-    Shutdown = 4,
-    InstallHook = 5,
-    ToggleHook = 6,
-    UninstallHook = 7,
-}
 
 struct Engine {
     connection: Connection,

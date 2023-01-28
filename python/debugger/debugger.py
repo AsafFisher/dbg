@@ -270,20 +270,20 @@ class RemoteProcess:
     """
 
     def __init__(self, addr: str, port: int) -> None:
-        sock = socket(AF_INET, SOCK_STREAM)
-        sock.connect((addr, port))
-        self.socket = sock
+        self.conn = DebugController(addr, port)
         self.hook_pool = HookPool()
 
     def leak(self, address: int) -> RemoteAddress:
-        return RemoteAddress(self.socket, address, self.hook_pool)
+        return RemoteAddress(self.conn, address, self.hook_pool)
 
     def disconnect(self):
-        self.socket.send(struct.pack("I", 3))
-        send_msg(self.socket, b"")
-        return cbor2.loads(recv_msg(self.socket))
+        return self.conn.disconnect()
+        # self.socket.send(struct.pack("I", 3))
+        # send_msg(self.socket, b"")
+        # return cbor2.loads(recv_msg(self.socket))
 
     def shutdown(self):
+        return self.conn.shutdown()
         self.socket.send(struct.pack("I", 4))
         send_msg(self.socket, b"")
         return cbor2.loads(recv_msg(self.socket))

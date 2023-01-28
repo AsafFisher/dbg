@@ -38,6 +38,12 @@ checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 [[package]]
 name = "byteorder"
 version = "1.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
+
+[[package]]
+name = "byteorder"
+version = "1.4.3"
 source = "git+https://github.com/AsafFisher/byteorder#683d3114d213ea5a0bc3b5da1f3d2fb069bab167"
 dependencies = [
  "core2",
@@ -69,7 +75,7 @@ name = "coregdb"
 version = "0.1.0"
 dependencies = [
  "base64",
- "byteorder",
+ "byteorder 1.4.3 (git+https://github.com/AsafFisher/byteorder)",
  "core2",
  "hal-linux-um",
  "hal-linux-um-shellcode",
@@ -106,8 +112,11 @@ dependencies = [
 name = "debugger_core"
 version = "0.1.0"
 dependencies = [
+ "byteorder 1.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "coregdb",
  "minicbor",
+ "num-derive",
+ "num-traits",
  "pyo3",
 ]
 

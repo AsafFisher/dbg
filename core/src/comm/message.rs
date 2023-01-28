@@ -6,6 +6,19 @@ use byteorder::{ReadBytesExt, WriteBytesExt};
 use core2::io::Read;
 use core2::io::Write;
 use minicbor;
+use num_derive::{FromPrimitive, ToPrimitive};
+
+#[derive(FromPrimitive, ToPrimitive, Clone)]
+pub enum CMD {
+    Read = 0,
+    Write = 1,
+    Call = 2,
+    Disconnect = 3,
+    Shutdown = 4,
+    InstallHook = 5,
+    ToggleHook = 6,
+    UninstallHook = 7,
+}
 
 #[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
 pub enum Response {
