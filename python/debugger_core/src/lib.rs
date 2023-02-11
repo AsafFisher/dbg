@@ -24,6 +24,9 @@ fn read_msg_buffer(connection: &mut TcpStream) -> Vec<u8> {
     buff
 }
 
+/// Sends a message buffer
+///
+/// Essentially this is a size + buffer sent.
 fn send_msg_buffer(connection: &mut TcpStream, buff: &[u8]) {
     // TODO: remove unwrap
     connection
@@ -33,14 +36,27 @@ fn send_msg_buffer(connection: &mut TcpStream, buff: &[u8]) {
     connection.write_all(buff).unwrap();
 }
 
-fn send_msg(connection: &mut TcpStream, msg_type: CMD, msg_data: Option<&[u8]>) {
+/// Sends a message with message type
+fn send_msg<T: minicbor::Encode<()>>(
+    connection: &mut TcpStream,
+    msg_type: CMD,
+    msg_data: Option<T>,
+) {
     // TODO: remove unwrap
     connection
         .write_u32::<LittleEndian>(ToPrimitive::to_u32(&msg_type).unwrap())
         .unwrap();
     if let Some(msg_data) = msg_data {
-        send_msg_buffer(connection, msg_data);
+        let mut send_buff = std::vec::Vec::<u8>::new();
+        minicbor::encode(msg_data, &mut send_buff).unwrap();
+        send_msg_buffer(connection, &send_buff);
     }
+}
+
+fn hook_send_msg<T: minicbor::Encode<()>>(connection: &mut TcpStream, content: T) {
+    let mut buff = std::vec::Vec::<u8>::new();
+    minicbor::encode(content, &mut buff).unwrap();
+    send_msg_buffer(connection, &buff);
 }
 
 pub fn get_response_if_success(connection: &mut TcpStream) -> Result<Response, String> {
@@ -162,16 +178,13 @@ impl HookController {
     /// Must be called second. Alternativly `skip_original_function` can be used to not call the original function
     fn call_original_with_args(&mut self, py: Python, arguments: Vec<u64>) -> PyResult<u64> {
         py.allow_threads(|| {
-            let mut buff = std::vec::Vec::<u8>::new();
-            minicbor::encode(
+            hook_send_msg(
+                &mut self.conn,
                 HookPreCallResponse {
                     hook_arguments: arguments,
                     call_original: true,
                 },
-                &mut buff,
-            )
-            .unwrap();
-            send_msg_buffer(&mut self.conn, &buff);
+            );
             let postcall: HookPostCall =
                 minicbor::decode(&read_msg_buffer(&mut self.conn)).unwrap();
             Ok(postcall.hook_return_value)
@@ -183,16 +196,13 @@ impl HookController {
     /// Must be called second. An alternative to call_original_with_args.
     fn skip_original_function(&mut self, py: Python) {
         py.allow_threads(|| {
-            let mut buff = std::vec::Vec::<u8>::new();
-            minicbor::encode(
+            hook_send_msg(
+                &mut self.conn,
                 HookPreCallResponse {
                     hook_arguments: std::vec::Vec::new(),
                     call_original: false,
                 },
-                &mut buff,
-            )
-            .unwrap();
-            send_msg_buffer(&mut self.conn, &buff);
+            );
         })
     }
     /// Set the new retval that will be returned from the hook instead of the original retval.
@@ -200,15 +210,12 @@ impl HookController {
     /// Must be called last.
     fn postcall_set_retval(&mut self, py: Python, retval: u64) {
         py.allow_threads(|| {
-            let mut buff = std::vec::Vec::<u8>::new();
-            minicbor::encode(
+            hook_send_msg(
+                &mut self.conn,
                 HookPostCallResponse {
                     hook_return_value: retval,
                 },
-                &mut buff,
             )
-            .unwrap();
-            send_msg_buffer(&mut self.conn, &buff);
         })
     }
 }
@@ -255,17 +262,15 @@ impl DebugController {
     /// ```
     pub fn call(&mut self, py: Python, address: u64, arguments: Vec<u64>) -> PyResult<u64> {
         py.allow_threads(|| {
-            let mut send_buff = std::vec::Vec::<u8>::new();
-            minicbor::encode(
-                CallCmd {
+            // TODO: remove unwrap
+            send_msg(
+                &mut self.conn,
+                CMD::Call,
+                Some(CallCmd {
                     address: address,
                     argunments: arguments,
-                },
-                &mut send_buff,
-            )
-            .unwrap();
-            // TODO: remove unwrap
-            send_msg(&mut self.conn, CMD::Call, Some(&send_buff));
+                }),
+            );
             match get_response_if_success(&mut self.conn) {
                 Ok(res) => match res {
                     Response::FunctionExecuted { ret } => Ok(ret),
@@ -288,17 +293,15 @@ impl DebugController {
     /// assert controller.read(0x123456, 4) == b"\x00\x00\x00\x00"
     /// ```
     pub fn read(&mut self, py: Python, address: u64, size: u64) -> PyResult<Py<PyBytes>> {
-        let mut send_buff = std::vec::Vec::<u8>::new();
-        minicbor::encode(
-            ReadCmd {
+        // TODO: remove unwrap
+        send_msg(
+            &mut self.conn,
+            CMD::Read,
+            Some(ReadCmd {
                 address: address,
                 size: size,
-            },
-            &mut send_buff,
-        )
-        .unwrap();
-        // TODO: remove unwrap
-        send_msg(&mut self.conn, CMD::Read, Some(&send_buff));
+            }),
+        );
         match get_response_if_success(&mut self.conn) {
             Ok(res) => match res {
                 Response::BytesRead { buff } => Ok(PyBytes::new(py, &buff).into()),
@@ -320,17 +323,15 @@ impl DebugController {
     /// assert controller.write(0x123456, b"\x00\x00\x00\x00") == 4
     /// ```
     pub fn write(&mut self, address: u64, buff: Vec<u8>) -> PyResult<u64> {
-        let mut send_buff = std::vec::Vec::<u8>::new();
-        minicbor::encode(
-            WriteCmd {
+        // TODO: remove unwrap
+        send_msg(
+            &mut self.conn,
+            CMD::Write,
+            Some(WriteCmd {
                 address: address,
                 buff: buff.into(),
-            },
-            &mut send_buff,
-        )
-        .unwrap();
-        // TODO: remove unwrap
-        send_msg(&mut self.conn, CMD::Write, Some(&send_buff));
+            }),
+        );
         match get_response_if_success(&mut self.conn) {
             Ok(res) => match res {
                 Response::BytesWritten { written } => Ok(written),
@@ -358,18 +359,16 @@ impl DebugController {
     /// ```
     pub fn hook(&mut self, py: Python, address: u64, prefix_size: u64, port: u16) -> PyResult<()> {
         py.allow_threads(|| {
-            let mut send_buff = std::vec::Vec::<u8>::new();
-            minicbor::encode(
-                InstallHookCmd {
+            // TODO: remove unwrap
+            send_msg(
+                &mut self.conn,
+                CMD::InstallHook,
+                Some(InstallHookCmd {
                     address: address,
                     prefix_size: prefix_size,
                     port: port as u64,
-                },
-                &mut send_buff,
-            )
-            .unwrap();
-            // TODO: remove unwrap
-            send_msg(&mut self.conn, CMD::InstallHook, Some(&send_buff));
+                }),
+            );
             match get_response_if_success(&mut self.conn) {
                 Ok(res) => match res {
                     Response::HookInstalled => Ok(()),
@@ -393,17 +392,15 @@ impl DebugController {
     /// ```
     pub fn hook_toggle(&mut self, py: Python, address: u64, enabled: bool) -> PyResult<()> {
         py.allow_threads(|| {
-            let mut send_buff = std::vec::Vec::<u8>::new();
-            minicbor::encode(
-                ToggleHookCmd {
+            // TODO: remove unwrap
+            send_msg(
+                &mut self.conn,
+                CMD::ToggleHook,
+                Some(ToggleHookCmd {
                     address: address,
                     enabled: enabled,
-                },
-                &mut send_buff,
-            )
-            .unwrap();
-            // TODO: remove unwrap
-            send_msg(&mut self.conn, CMD::ToggleHook, Some(&send_buff));
+                }),
+            );
             match get_response_if_success(&mut self.conn) {
                 Ok(res) => match res {
                     Response::HookToggled => Ok(()),
@@ -432,7 +429,7 @@ impl DebugController {
     /// ```
     pub fn disconnect(&mut self) -> PyResult<()> {
         // TODO: remove unwrap
-        send_msg(&mut self.conn, CMD::Disconnect, None);
+        send_msg::<()>(&mut self.conn, CMD::Disconnect, None);
         match get_response_if_success(&mut self.conn) {
             Ok(res) => match res {
                 Response::Disconnecting => Ok(()),
@@ -460,7 +457,7 @@ impl DebugController {
     /// ```
     pub fn shutdown(&mut self) -> PyResult<()> {
         // TODO: remove unwrap
-        send_msg(&mut self.conn, CMD::Shutdown, None);
+        send_msg::<()>(&mut self.conn, CMD::Shutdown, None);
         match get_response_if_success(&mut self.conn) {
             Ok(res) => match res {
                 Response::Shutdown => Ok(()),
