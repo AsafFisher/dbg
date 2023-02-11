@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = { version = "0.17.3", features = ["extension-module"] }
-coregdb = {version = "0.1.0", path = "../../core", default-features = false, features = ["linux_um"]}
+coregdb = {version = "0.1.0", path = "../../core", default-features = false, features = ["no_logic"]}
 minicbor =  {version = "0.19.0", default-features = false, features = ["derive", "alloc"]}
 num-derive = {version = "0.3", default-features = false}
 num-traits = {version = "0.2", default-features = false}

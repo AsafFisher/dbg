@@ -1,7 +1,8 @@
 use alloc::string::String;
 use core2;
 
-#[cfg(feature = "linux_um")]
+// TODO: remove no_logic should not be here at all.
+#[cfg(any(feature = "linux_um", feature = "no_logic"))]
 use hal_linux_um::{Connection as ConnImpl, Hal as HalImpl};
 #[cfg(feature = "linux_um_shellcode")]
 use hal_linux_um_shellcode::{Connection as ConnImpl, Hal as HalImpl};

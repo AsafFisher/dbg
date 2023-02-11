@@ -1,7 +1,7 @@
 extern crate base64;
 use crate::comm::message::{
     read_msg_buffer, CallCmd, InstallHookCmd, ReadCmd, Response, ResponseStatus, ToggleHookCmd,
-    UninstallHookCmd, WriteCmd, CMD
+    UninstallHookCmd, WriteCmd, CMD,
 };
 use crate::hal::{Connection, Hal};
 use crate::hooks::interactive_hook::InteractiveHooks;
@@ -10,12 +10,13 @@ use alloc::{string::ToString, vec::Vec};
 pub use base64::{decode, encode};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use core::ffi::c_void;
+use core::mem::MaybeUninit;
 use core2::io::Write;
 use num_traits::FromPrimitive;
-use static_alloc::Bump;
 
-#[global_allocator]
-static A: Bump<[u8; 1 << 16]> = Bump::uninit();
+use umm_malloc;
+
+static mut HEAP: MaybeUninit<[u8; 1 << 16]> = MaybeUninit::uninit();
 
 struct Engine {
     connection: Connection,
@@ -198,6 +199,7 @@ impl Engine {
 }
 
 pub fn run() {
+    unsafe { umm_malloc::init_heap(HEAP.as_ptr() as usize, HEAP.as_bytes().len()) }
     let mut engine = Engine::new();
     engine.run();
 }
