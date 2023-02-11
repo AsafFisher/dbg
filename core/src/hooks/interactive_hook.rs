@@ -5,35 +5,11 @@ use alloc::{
 };
 
 use crate::comm::message::{
-    read_msg_buffer, write_msg_buffer, InstallHookCmd, ToggleHookCmd, UninstallHookCmd,
+    read_msg_buffer, write_msg_buffer, HookPostCall, HookPostCallResponse, HookPreCallResponse,
+    HookPrecall, InstallHookCmd, ToggleHookCmd, UninstallHookCmd,
 };
 
 use super::{DetourHook, DynamicTrampoline};
-
-#[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
-struct HookPrecall {
-    #[n(0)]
-    hook_arguments: Vec<u64>,
-}
-#[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
-
-struct HookPreCallResponse {
-    #[n(0)]
-    hook_arguments: Vec<u64>,
-    #[n(1)]
-    call_original: bool,
-}
-
-#[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
-struct HookPostCall {
-    #[n(0)]
-    hook_return_value: u64,
-}
-#[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
-struct HookPostCallResponse {
-    #[n(0)]
-    hook_return_value: u64,
-}
 
 pub struct InteractiveHooksInner {
     hooks: Vec<(DetourHook<DynamicTrampoline>, Connection)>,

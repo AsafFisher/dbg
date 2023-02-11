@@ -120,6 +120,53 @@ pub struct ToggleHookCmd {
     pub enabled: bool,
 }
 
+//      mov rdi, 1
+//      call 0x12345 <--  At this point just after the jump we want to
+//                        send the arguments... For this we use
+//                        HookPrecall
+
+// This the format of the arguments when sent before the hook
+#[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
+pub struct HookPrecall {
+    #[n(0)]
+    // Arguments for the function that we hooked on.
+    pub hook_arguments: Vec<u64>,
+}
+#[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
+
+// TODO: replace with enum
+// This struct contains the argument state the debugger want.
+// Its a response for the HookPrecall
+pub struct HookPreCallResponse {
+    #[n(0)]
+    // Argument that the debugger want to set for the hooked function
+    pub hook_arguments: Vec<u64>,
+    #[n(1)]
+    // Do we want to call the original function?
+    // If set to true, the original function will be called with the supplied
+    // `hook_arguments` as parameters
+    // If set to false, `hook_arguments` will be ignored and the original function
+    // will not be called resulting in execution of the next stage (HookPostCall)
+    pub call_original: bool,
+}
+
+// This struct contains the return value of the original function
+// we hooked on
+#[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
+pub struct HookPostCall {
+    #[n(0)]
+    // The result value of the original function
+    pub hook_return_value: u64,
+}
+
+// This struct contains the return value the debugger want to set
+#[derive(Debug, minicbor::Decode, minicbor::Encode, PartialEq)]
+pub struct HookPostCallResponse {
+    #[n(0)]
+    // The result value the debugger want to return instead of the original one.
+    pub hook_return_value: u64,
+}
+
 pub fn read_msg_buffer(connection: &mut Connection) -> Vec<u8> {
     let msg_size = connection.read_u64::<LittleEndian>().unwrap();
     let mut buff = Vec::with_capacity(msg_size as usize);
