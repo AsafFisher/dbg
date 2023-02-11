@@ -45,6 +45,8 @@ def run_build(arch):
 @click.command()
 @click.argument("arch", type=click.Choice(target_archs))
 def build(arch):
+    with chdir("./python/debugger_core"):
+        os.system("maturin develop --release")
     run_build(arch)
 
 

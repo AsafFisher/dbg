@@ -70,7 +70,7 @@ mod tests {
             DebugerController {
                 ctx: python! {
                     import debugger
-                    proc = debugger.RemoteProcess('ip, 'port)
+                    proc = debugger.RemoteProcess('ip + ":" + str('port))
                 },
             }
         }
