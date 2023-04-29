@@ -5,5 +5,15 @@ version = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-coregdb = {version = "0.1.0", path = "../../core", default-features = false, features=["linux_um_shellcode"]}
+[target.'cfg(target_arch = "x86_64")'.dependencies.coregdb]
+version = "0.1.0"
+path = "../../core"
+default-features = false
+features=["linux_um_shellcode", "hooks"]
+
+
+[target.'cfg(target_arch = "arm")'.dependencies.coregdb]
+version = "0.1.0"
+path = "../../core"
+default-features = false
+features=["linux_um_shellcode"]
