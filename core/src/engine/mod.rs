@@ -4,11 +4,13 @@ use crate::comm::message::{
     UninstallHookCmd, WriteCmd, CMD,
 };
 use crate::hal::{Connection, Hal};
+#[cfg(feature = "hooks")]
 use crate::hooks::interactive_hook::InteractiveHooks;
 use alloc::string::String;
 use alloc::{string::ToString, vec::Vec};
 pub use base64::{decode, encode};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use cfg_if;
 use core::ffi::c_void;
 use core::mem::MaybeUninit;
 use core2::io::Write;
@@ -20,16 +22,27 @@ static mut HEAP: MaybeUninit<[u8; 1 << 16]> = MaybeUninit::uninit();
 
 struct Engine {
     connection: Connection,
+    #[cfg(feature = "hooks")]
     hooks: InteractiveHooks,
 }
 
 impl Engine {
     pub fn new() -> Engine {
         let connection = Hal::init_connection(None).unwrap();
-        let hooks = InteractiveHooks::new();
-        Engine {
-            connection: connection,
-            hooks: hooks,
+        cfg_if::cfg_if! {
+                if #[cfg(feature = "hooks")] {
+                    let hooks = InteractiveHooks::new();
+                    Engine {
+                        connection: connection,
+                        hooks: hooks,
+                    }
+                } else {
+                Engine {
+                    connection: connection,
+                }
+            }
+
+
         }
     }
     pub fn run(&mut self) {
@@ -128,18 +141,21 @@ impl Engine {
         }
     }
 
+    #[cfg(feature = "hooks")]
     fn install_hook(&mut self, message: &[u8]) -> Result<Response, String> {
         let hook_cmd: InstallHookCmd = minicbor::decode(message).unwrap();
         self.hooks.initialize_interactive_hook(hook_cmd)?;
         Ok(Response::HookInstalled)
     }
 
+    #[cfg(feature = "hooks")]
     fn uninstall_hook(&mut self, message: &[u8]) -> Result<Response, String> {
         let hook_cmd: UninstallHookCmd = minicbor::decode(message).unwrap();
         self.hooks.uninintialize_interactive_hook(hook_cmd)?;
         Ok(Response::HookUninstalled)
     }
 
+    #[cfg(feature = "hooks")]
     fn handle_toggle_hook(&mut self, message: &[u8]) -> Result<Response, String> {
         let hook_cmd: ToggleHookCmd = minicbor::decode(message).unwrap();
         self.hooks.toggle_interactive_hook(hook_cmd)?;
@@ -166,8 +182,12 @@ impl Engine {
                 Some(CMD::Read) => Self::handle_read(message_slc.as_slice()),
                 Some(CMD::Write) => Self::handle_write(message_slc.as_slice()),
                 Some(CMD::Call) => Self::handle_call(message_slc.as_slice()),
+
+                #[cfg(feature = "hooks")]
                 Some(CMD::InstallHook) => self.install_hook(message_slc.as_slice()),
+                #[cfg(feature = "hooks")]
                 Some(CMD::UninstallHook) => self.uninstall_hook(message_slc.as_slice()),
+                #[cfg(feature = "hooks")]
                 Some(CMD::ToggleHook) => self.handle_toggle_hook(message_slc.as_slice()),
 
                 Some(CMD::Disconnect) => {
@@ -178,6 +198,7 @@ impl Engine {
                     should_stop = Some(true);
                     Ok(Response::Shutdown)
                 }
+                Some(_) => Err("Not supported".to_string()),
                 None => todo!(),
             };
 

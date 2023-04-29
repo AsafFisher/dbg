@@ -11,6 +11,7 @@ path = "src/lib.rs"
 default = ["linux_um"]
 linux_um_shellcode = ["hal-linux-um-shellcode", "umm-malloc"]
 linux_um = ["hal-linux-um"]
+hooks = []
 
 # TODO: make no_logic work without hal.
 # The messaginc protocol is used by other libs
@@ -33,6 +34,7 @@ umm-malloc = {version = "0.3.1", git = "https://github.com/AsafFisher/umm-malloc
 # Available HALs
 hal-linux-um-shellcode = {version = "0.1.0", path = "../hal/shellcode_linuxgdb", optional = true}
 hal-linux-um = {version = "0.1.0", path = "../hal/stdgdb", optional = true}
+cfg-if = "1.0.0"
 [dependencies.core2]
 default-features = false
 features = ["nightly", "alloc"]

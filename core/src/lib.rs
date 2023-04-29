@@ -13,7 +13,7 @@ pub mod engine;
 
 mod hal;
 
-#[cfg(not(feature = "no_logic"))]
+#[cfg(all(not(feature = "no_logic"), feature = "hooks"))]
 mod hooks;
 
 #[cfg(not(feature = "no_logic"))]
